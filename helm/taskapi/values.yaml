@@ -1,7 +1,7 @@
 replicaCount: 3
 
 image:
-  repository: ghcr.io/YOUR_GH_USERNAME/taskapi
+  repository: ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd
   tag: latest
   pullPolicy: IfNotPresent
 

@@ -1,6 +1,6 @@
 # Task API — Kubernetes & DevOps Portfolio Project
 
-![CI](https://github.com/YOUR_GH_USERNAME/taskapi-k8s/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/MelvinjoseC/fastapi-k8s-helm-cicd/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -57,7 +57,7 @@ docs/architecture.md  Design rationale, written for interview walkthroughs
 ## Quick start — local development
 
 ```bash
-git clone https://github.com/YOUR_GH_USERNAME/taskapi-k8s.git
+git clone https://github.com/MelvinjoseC/fastapi-k8s-helm-cicd.git
 cd taskapi-k8s
 docker compose up --build
 ```
@@ -91,7 +91,7 @@ docker build -t taskapi:dev ./app
 kind load docker-image taskapi:dev --name taskapi-dev
 
 cd k8s/overlays/dev
-kustomize edit set image ghcr.io/YOUR_GH_USERNAME/taskapi=taskapi:dev
+kustomize edit set image ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd=taskapi:dev
 kubectl apply -k .
 
 kubectl rollout status deployment/taskapi -n taskapi-dev

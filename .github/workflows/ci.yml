@@ -121,7 +121,7 @@ jobs:
       - name: Point manifests at the locally-built image
         run: |
           cd k8s/overlays/dev
-          kustomize edit set image ghcr.io/YOUR_GH_USERNAME/taskapi=taskapi:ci-test
+          kustomize edit set image ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd=taskapi:ci-test
 
       - name: Deploy via Kustomize
         run: kubectl apply -k k8s/overlays/dev
