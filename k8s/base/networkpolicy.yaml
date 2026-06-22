@@ -1,0 +1,46 @@
+# Default-deny posture: only allow the traffic this app actually needs.
+# Without this, every pod in the namespace can talk to every other pod -
+# a common source of lateral-movement risk in real incidents.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: taskapi-network-policy
+  namespace: taskapi
+spec:
+  podSelector:
+    matchLabels:
+      app: taskapi
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector: {} # allow other pods in this namespace (e.g. for testing)
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to: # DNS resolution
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

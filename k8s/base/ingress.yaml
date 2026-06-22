@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: taskapi-ingress
+  namespace: taskapi
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "20" # basic rate limiting
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - taskapi.example.com
+      secretName: taskapi-tls
+  rules:
+    - host: taskapi.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: taskapi
+                port:
+                  number: 80

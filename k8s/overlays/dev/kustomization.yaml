@@ -1,0 +1,57 @@
+# Note: we deliberately avoid combining `namePrefix` with a Namespace
+# resource here - kustomize renames the Namespace object via the
+# `namespace:` field directly (it special-cases this), so dev and prod
+# overlays land in fully separate, isolated namespaces without the
+# name-mismatch gotcha that namePrefix + Namespace resources can cause.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskapi-dev
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: taskapi
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: taskapi-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  - target:
+      kind: Ingress
+      name: taskapi-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: taskapi-dev.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: taskapi-dev.example.com
+
+configMapGenerator:
+  - name: taskapi-config
+    behavior: merge
+    literals:
+      - APP_ENV=development
+      - LOG_LEVEL=debug

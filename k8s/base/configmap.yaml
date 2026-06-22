@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskapi-config
+  namespace: taskapi
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  CACHE_ENABLED: "true"
+  REDIS_TTL_SECONDS: "30"

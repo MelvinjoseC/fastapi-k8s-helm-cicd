@@ -1,0 +1,65 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/YOUR_GH_USERNAME/taskapi
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: nginx
+  host: taskapi.example.com
+  tls: true
+  clusterIssuer: letsencrypt-prod
+
+config:
+  appEnv: production
+  logLevel: info
+  redisHost: redis
+  redisPort: "6379"
+  cacheEnabled: "true"
+
+# In production, override secrets via --set or a separate
+# values-prod.yaml that's NOT committed to git (or use Helm Secrets / SOPS).
+secrets:
+  postgresUser: taskapi
+  postgresPassword: change-me-in-production
+  databaseUrl: "postgresql://taskapi:change-me-in-production@postgres:5432/taskapi"
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000

@@ -1,0 +1,16 @@
+Task API has been deployed.
+
+Check rollout status:
+  kubectl rollout status deployment/{{ include "taskapi.name" . }} -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+Once DNS/ingress is ready, the API will be reachable at:
+  https://{{ .Values.ingress.host }}
+{{- else }}
+Port-forward to reach it locally:
+  kubectl port-forward svc/{{ include "taskapi.name" . }} 8000:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+Note: this chart includes a Postgres StatefulSet and Redis Deployment for
+demo purposes. For production, point `secrets.databaseUrl` at a managed
+database instead.

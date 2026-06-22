@@ -1,0 +1,52 @@
+name: CD - Deploy to Production
+
+# Fires on version tags, e.g. `git tag v1.2.0 && git push --tags`
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Helm upgrade on production cluster
+    runs-on: ubuntu-latest
+    environment: production # configure required reviewers under repo Settings -> Environments
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag from git tag
+        run: echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > "$HOME/.kube/config"
+        # Requires repo secret KUBE_CONFIG_PROD: a base64-encoded kubeconfig
+        # for the production cluster, scoped to a service account that can
+        # only touch the taskapi-prod namespace. Generate with:
+        #   kubectl config view --minify --flatten | base64 -w0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Deploy
+        run: |
+          helm upgrade --install taskapi ./helm/taskapi \
+            --namespace taskapi-prod \
+            --create-namespace \
+            -f helm/taskapi/values-prod.yaml \
+            --set image.tag="${IMAGE_TAG}" \
+            --set secrets.postgresPassword="${{ secrets.PROD_DB_PASSWORD }}" \
+            --wait --timeout 5m
+
+      - name: Verify rollout
+        run: kubectl rollout status deployment/taskapi -n taskapi-prod --timeout=120s
+
+      - name: Roll back on failure
+        if: failure()
+        run: helm rollback taskapi -n taskapi-prod

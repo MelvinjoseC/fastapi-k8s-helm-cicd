@@ -1,0 +1,21 @@
+# Requires the Prometheus Operator (kube-prometheus-stack) CRDs installed
+# in the cluster. This tells Prometheus to scrape /metrics on the taskapi
+# Service every 15s.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: taskapi
+  namespace: taskapi
+  labels:
+    release: kube-prometheus-stack # must match your Prometheus Operator's selector
+spec:
+  selector:
+    matchLabels:
+      app: taskapi
+  namespaceSelector:
+    matchNames:
+      - taskapi
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskapi
+  labels:
+    app.kubernetes.io/name: taskapi
+    app.kubernetes.io/part-of: taskapi-platform
