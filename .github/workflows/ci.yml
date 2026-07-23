@@ -34,6 +34,9 @@ jobs:
           version: v3.14.4
       - name: Lint Helm Chart
         run: helm lint helm/taskapi
+      - name: Validate Helm Chart rendering (dry-run)
+        run: helm template taskapi-test helm/taskapi --values helm/taskapi/values.yaml --debug > /dev/null
+
 
 
 
