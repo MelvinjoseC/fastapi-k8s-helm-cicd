@@ -26,6 +26,13 @@ jobs:
       - run: flake8 --max-line-length=110 --extend-ignore=E203,W503 app --exclude=app/tests/__pycache__
       - run: black --check app
       - run: bandit -r app -x app/tests
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+      - name: Lint Helm Chart
+        run: helm lint helm/taskapi
+
 
 
   test:
