@@ -33,7 +33,7 @@ spec:
 
         - alert: TaskAPIPodCrashLooping
           expr: |
-            increase(kube_pod_container_status_restarts_total{namespace="taskapi"}[15m]) > 3
+            increase(kube_pod_container_status_restarts_total{container="taskapi"}[15m]) > 3
           for: 5m
           labels:
             severity: critical
@@ -43,7 +43,7 @@ spec:
 
         - alert: TaskAPINoHealthyPods
           expr: |
-            kube_deployment_status_replicas_available{namespace="taskapi", deployment="taskapi"} == 0
+            kube_deployment_status_replicas_available{deployment="taskapi"} == 0
           for: 2m
           labels:
             severity: critical
@@ -53,9 +53,9 @@ spec:
 
         - alert: TaskAPIHPAMaxedOut
           expr: |
-            kube_horizontalpodautoscaler_status_current_replicas{namespace="taskapi", horizontalpodautoscaler="taskapi-hpa"}
+            kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="taskapi-hpa"}
             >=
-            kube_horizontalpodautoscaler_spec_max_replicas{namespace="taskapi", horizontalpodautoscaler="taskapi-hpa"}
+            kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="taskapi-hpa"}
           for: 10m
           labels:
             severity: warning
