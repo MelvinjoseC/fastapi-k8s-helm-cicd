@@ -1,0 +1,69 @@
+{{- if .Values.prometheusRules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "taskapi.name" . }}-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "taskapi.labels" . | nindent 4 }}
+    {{- if .Values.prometheusRules.additionalLabels }}
+    {{- toYaml .Values.prometheusRules.additionalLabels | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: {{ include "taskapi.name" . }}.rules
+      rules:
+        - alert: TaskAPIHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Task API 5xx error rate above 5%"
+            description: "More than 5% of requests have returned 5xx for 5 minutes. Check recent deploys and pod logs."
+
+        - alert: TaskAPIHighLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="{{ include "taskapi.name" . }}"}[5m])) by (le)) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Task API p95 latency above 1s"
+            description: "95th percentile request latency has exceeded 1 second for 10 minutes."
+
+        - alert: TaskAPIPodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{container="{{ include "taskapi.name" . }}"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Task API pod restarting repeatedly"
+            description: "A taskapi pod has restarted more than 3 times in 15 minutes - likely crash-looping."
+
+        - alert: TaskAPINoHealthyPods
+          expr: |
+            kube_deployment_status_replicas_available{deployment="{{ include "taskapi.name" . }}"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No healthy Task API pods available"
+            description: "The taskapi Deployment has zero available replicas - the service is down."
+
+        - alert: TaskAPIHPAMaxedOut
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="{{ include "taskapi.name" . }}-hpa"}
+            >=
+            kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="{{ include "taskapi.name" . }}-hpa"}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Task API HPA at max replicas"
+            description: "Autoscaler has been at its max replica count for 10+ minutes - consider raising maxReplicas or investigating load."
+{{- end }}

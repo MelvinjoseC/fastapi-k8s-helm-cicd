@@ -75,3 +75,9 @@ serviceMonitor:
   additionalLabels:
     release: kube-prometheus-stack
 
+prometheusRules:
+  enabled: false
+  additionalLabels:
+    release: kube-prometheus-stack
+
+
