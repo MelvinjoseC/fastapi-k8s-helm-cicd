@@ -66,3 +66,12 @@ podDisruptionBudget:
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
+
+serviceMonitor:
+  enabled: false
+  path: /metrics
+  interval: 15s
+  scrapeTimeout: 10s
+  additionalLabels:
+    release: kube-prometheus-stack
+
