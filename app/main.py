@@ -24,8 +24,9 @@ import models
 import schemas
 from config import settings
 from database import get_db, init_db
+from logging_config import setup_logging
 
-logging.basicConfig(level=settings.log_level.upper())
+setup_logging(settings.log_level, settings.log_format)
 logger = logging.getLogger("taskapi")
 
 CACHE_KEY_ALL_TASKS = "tasks:all"
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
 
 
 from exceptions import AppException, app_exception_handler
+from middleware.request_context import RequestCorrelationMiddleware
 
 app = FastAPI(
     title="Task API",
@@ -48,6 +50,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestCorrelationMiddleware)
 app.add_exception_handler(AppException, app_exception_handler)
 
 # Exposes /metrics in Prometheus exposition format (request counts,
