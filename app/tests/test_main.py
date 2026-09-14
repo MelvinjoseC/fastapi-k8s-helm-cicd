@@ -176,3 +176,27 @@ def test_paginated_tasks(client):
     assert data["page"] == 1
     assert data["page_size"] == 2
     assert data["total_pages"] == 3
+
+
+def test_database_health_check():
+    import database
+    assert database.check_db_health() is True
+
+
+def test_cache_stats_and_ping():
+    import cache
+    stats = cache.get_stats()
+    assert isinstance(stats, dict)
+    assert "hits" in stats
+    assert cache.ping() is False  # In test environment cache is disabled
+
+
+def test_domain_exceptions_handling():
+    from exceptions import AppException, ResourceNotFoundError, ConflictError
+    err = ResourceNotFoundError("Task", 42)
+    assert err.status_code == 404
+    assert err.error_code == "RESOURCE_NOT_FOUND"
+
+    conflict = ConflictError("Duplicate title")
+    assert conflict.status_code == 409
+    assert conflict.error_code == "CONFLICT"
