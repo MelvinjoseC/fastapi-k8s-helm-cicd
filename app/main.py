@@ -40,8 +40,10 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.app_name)
 
 
+from fastapi.middleware.cors import CORSMiddleware
 from exceptions import AppException, app_exception_handler
 from middleware.request_context import RequestCorrelationMiddleware
+from middleware.security import SecurityHeadersMiddleware
 
 app = FastAPI(
     title="Task API",
@@ -50,6 +52,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(RequestCorrelationMiddleware)
 app.add_exception_handler(AppException, app_exception_handler)
 
