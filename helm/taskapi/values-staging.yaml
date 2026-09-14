@@ -1,0 +1,40 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd
+  tag: staging-latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: taskapi-staging.example.com
+  tls: true
+  clusterIssuer: letsencrypt-staging
+
+config:
+  appEnv: staging
+  logLevel: info
+  redisHost: redis
+  redisPort: "6379"
+  cacheEnabled: "true"
+
+secrets:
+  postgresUser: taskapi
+  postgresPassword: staging-db-password-placeholder
+  databaseUrl: "postgresql://taskapi:staging-db-password-placeholder@postgres:5432/taskapi_staging"

@@ -2,8 +2,8 @@ apiVersion: v2
 name: taskapi
 description: A Helm chart for the Task API - a demo Kubernetes/DevOps portfolio microservice
 type: application
-version: 1.0.0
-appVersion: "1.0.0"
+version: 1.1.0
+appVersion: "1.1.0"
 keywords:
   - fastapi
   - python

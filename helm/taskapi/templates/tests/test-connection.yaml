@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "taskapi.name" . }}-test-connection"
+  labels:
+    {{- include "taskapi.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:8.7.1
+      command: ["curl"]
+      args: ["-f", "http://{{ include "taskapi.name" . }}:{{ .Values.service.port }}/health"]
+  restartPolicy: Never
