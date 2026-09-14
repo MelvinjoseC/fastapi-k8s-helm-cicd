@@ -85,10 +85,16 @@ Secrets to git is a common and serious mistake. The included
 for a demo or CI smoke test; the README and inline comments call out
 Sealed Secrets / External Secrets Operator as the production path.
 
-## What I'd add with more time
+## Implemented Enterprise Production Capabilities
 
-- mTLS between services via a service mesh (Linkerd/Istio)
-- OpenTelemetry tracing in addition to Prometheus metrics
-- A staging environment + GitOps (Argo CD) instead of `kubectl`/`helm`
-  driven directly from CI
-- Database migrations via Alembic instead of `create_all()`
+- **Database Migrations with Alembic**: Fully decoupled schema migration runner (`app/migrate.py`) executed via Kubernetes pre-deployment Job and Helm `pre-install,pre-upgrade` hooks (see [ADR 0002](adr/0002-database-migrations-with-alembic.md)).
+- **Structured JSON Logging & Distributed Tracing**: Single-line JSON logger with correlation IDs (`X-Request-ID`) and OpenTelemetry SDK instrumentation (see [ADR 0001](adr/0001-structured-json-logging-and-tracing.md)).
+- **GitOps Deployment with Argo CD**: Declarative Application CRDs for dev, staging, and prod environments (see [ADR 0003](adr/0003-gitops-with-argocd.md)).
+- **Helm Schema Validation & Lifecycle Hooks**: Values validation with JSON Schema Draft 7, test connection hooks, and multi-environment values profiles (see [ADR 0004](adr/0004-helm-schema-validation-and-hooks.md)).
+- **Production Runbooks**: Step-by-step incident remediation procedures for high error rates, latencies, and pod crash looping (see [Runbook](runbook.md)).
+
+## Future Evolution
+
+- mTLS between services via a service mesh (Linkerd / Istio ambient mesh)
+- Automated canary rollouts via Argo Rollouts or Flagger
+- External Secrets Operator integration with AWS Secrets Manager / HashiCorp Vault
