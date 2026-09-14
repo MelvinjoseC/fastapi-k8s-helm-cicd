@@ -19,6 +19,7 @@ resources:
   - pdb.yaml
   - networkpolicy.yaml
   - ingress.yaml
+  - migration-job.yaml
 
 images:
   - name: ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd
