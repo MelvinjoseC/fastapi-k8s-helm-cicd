@@ -1,12 +1,12 @@
 {
-  "title": "Task API - Service Overview",
+  "title": "Task API - Service & Business Observability",
   "uid": "taskapi-overview",
-  "tags": ["taskapi", "kubernetes", "fastapi"],
+  "tags": ["taskapi", "kubernetes", "fastapi", "sre"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "version": 2,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
   "panels": [
     {
       "id": 1,
@@ -27,14 +27,14 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "100 * sum(rate(http_requests_total{job=\"taskapi\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"taskapi\"}[5m]))",
+          "expr": "100 * sum(rate(http_requests_total{job=\"taskapi\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"taskapi\"}[5m])), 0.001)",
           "legendFormat": "5xx %"
         }
       ]
     },
     {
       "id": 3,
-      "title": "p50 / p95 / p99 Latency",
+      "title": "p50 / p95 / p99 Latency (seconds)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
@@ -54,40 +54,68 @@
     },
     {
       "id": 4,
-      "title": "Pod Count (Available / Desired)",
+      "title": "Pod Count (Available vs Replicas)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "kube_deployment_status_replicas_available{namespace=\"taskapi\",deployment=\"taskapi\"}",
+          "expr": "kube_deployment_status_replicas_available{deployment=\"taskapi\"}",
           "legendFormat": "available"
         },
         {
-          "expr": "kube_deployment_spec_replicas{namespace=\"taskapi\",deployment=\"taskapi\"}",
+          "expr": "kube_deployment_spec_replicas{deployment=\"taskapi\"}",
           "legendFormat": "desired"
         }
       ]
     },
     {
       "id": 5,
-      "title": "CPU Usage per Pod",
+      "title": "Task Throughput by Priority (tasks/sec)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"taskapi\",container=\"taskapi\"}[5m])) by (pod)",
-          "legendFormat": "{{pod}}"
+          "expr": "sum(rate(taskapi_tasks_created_total[5m])) by (priority)",
+          "legendFormat": "Created: {{priority}}"
+        },
+        {
+          "expr": "sum(rate(taskapi_tasks_completed_total[5m]))",
+          "legendFormat": "Completed"
         }
       ]
     },
     {
       "id": 6,
-      "title": "Memory Usage per Pod",
+      "title": "Redis Cache Hit Ratio (%)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{namespace=\"taskapi\",container=\"taskapi\"}) by (pod)",
+          "expr": "100 * sum(rate(taskapi_cache_operations_total{operation=\"get\",status=\"hit\"}[5m])) / clamp_min(sum(rate(taskapi_cache_operations_total{operation=\"get\"}[5m])), 0.001)",
+          "legendFormat": "Hit Ratio %"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "CPU Usage per Pod",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container=\"taskapi\"}[5m])) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Memory Usage per Pod (bytes)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{container=\"taskapi\"}) by (pod)",
           "legendFormat": "{{pod}}"
         }
       ]
