@@ -64,6 +64,10 @@ app.add_middleware(
 app.add_middleware(RequestCorrelationMiddleware)
 app.add_exception_handler(AppException, app_exception_handler)
 
+from tracing import setup_tracing
+
+setup_tracing(app)
+
 # Exposes /metrics in Prometheus exposition format (request counts,
 # latency histograms, in-progress requests, etc.) with zero manual wiring.
 Instrumentator().instrument(app).expose(app, include_in_schema=False)
