@@ -1,6 +1,6 @@
 # Default-deny posture: only allow the traffic this app actually needs.
-# Without this, every pod in the namespace can talk to every other pod -
-# a common source of lateral-movement risk in real incidents.
+# Prevents lateral movement across namespaces and restricts egress strictly
+# to authorized dependencies: Postgres, Redis, and CoreDNS.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -14,15 +14,30 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Ingress from ingress-nginx controller
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
-        - podSelector: {} # allow other pods in this namespace (e.g. for testing)
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Ingress from Prometheus monitoring scrapers
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Ingress from within release namespace (e.g. migration job or smoke test)
+    - from:
+        - podSelector: {}
       ports:
         - protocol: TCP
           port: 8000
   egress:
+    # Egress to PostgreSQL StatefulSet
     - to:
         - podSelector:
             matchLabels:
@@ -30,6 +45,7 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+    # Egress to Redis cache
     - to:
         - podSelector:
             matchLabels:
@@ -37,8 +53,14 @@ spec:
       ports:
         - protocol: TCP
           port: 6379
-    - to: # DNS resolution
-        - namespaceSelector: {}
+    # Egress strictly to kube-system CoreDNS for cluster name resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
       ports:
         - protocol: UDP
           port: 53
