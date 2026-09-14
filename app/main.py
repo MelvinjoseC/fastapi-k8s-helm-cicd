@@ -20,6 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import cache
+import metrics
 import models
 import schemas
 from config import settings
@@ -103,6 +104,8 @@ def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(task)
     cache.invalidate(CACHE_KEY_ALL_TASKS)
+    metrics.tasks_created_total.labels(priority=task.priority).inc()
+    metrics.active_tasks_gauge.inc()
     return task
 
 
@@ -216,6 +219,8 @@ def update_task(task_id: int, payload: schemas.TaskUpdate, db: Session = Depends
     db.commit()
     db.refresh(task)
     cache.invalidate_task(task_id)
+    if task.completed:
+        metrics.tasks_completed_total.inc()
     return task
 
 
@@ -233,6 +238,9 @@ def delete_task(task_id: int, permanent: bool = Query(default=False), db: Sessio
 
     db.commit()
     cache.invalidate_task(task_id)
+    metrics.tasks_deleted_total.labels(permanent=str(permanent).lower()).inc()
+    if not task.completed:
+        metrics.active_tasks_gauge.dec()
     return None
 
 
@@ -247,5 +255,7 @@ def restore_task(task_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(task)
     cache.invalidate_task(task_id)
+    if not task.completed:
+        metrics.active_tasks_gauge.inc()
     return task
 
