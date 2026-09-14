@@ -39,12 +39,16 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.app_name)
 
 
+from exceptions import AppException, app_exception_handler
+
 app = FastAPI(
     title="Task API",
     description="Demo microservice for a Kubernetes/DevOps portfolio project",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.add_exception_handler(AppException, app_exception_handler)
 
 # Exposes /metrics in Prometheus exposition format (request counts,
 # latency histograms, in-progress requests, etc.) with zero manual wiring.
