@@ -12,6 +12,11 @@ service:
   annotations: {}
   labels: {}
 
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
 
 resources:
   requests:
