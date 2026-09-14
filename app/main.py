@@ -90,7 +90,15 @@ def ready(db: Session = Depends(get_db)):
 
 @app.post("/tasks", response_model=schemas.TaskOut, status_code=201, tags=["tasks"])
 def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
-    task = models.Task(title=payload.title, description=payload.description)
+    tags_str = ",".join(payload.tags) if payload.tags else ""
+    task = models.Task(
+        title=payload.title,
+        description=payload.description,
+        priority=payload.priority.value if hasattr(payload.priority, "value") else payload.priority,
+        status=models.TaskStatus.PENDING.value,
+        due_date=payload.due_date,
+        tags=tags_str,
+    )
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -101,52 +109,143 @@ def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
 @app.get("/tasks", response_model=List[schemas.TaskOut], tags=["tasks"])
 def list_tasks(
     completed: bool | None = Query(default=None),
+    status: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    q: str | None = Query(default=None, description="Search term in title or description"),
+    include_deleted: bool = Query(default=False),
     db: Session = Depends(get_db),
 ):
-    if completed is None:
+    # Only cache un-filtered queries
+    if completed is None and status is None and priority is None and q is None and not include_deleted:
         cached = cache.get(CACHE_KEY_ALL_TASKS)
         if cached is not None:
             return cached
 
     query = db.query(models.Task)
+    if not include_deleted:
+        query = query.filter(models.Task.is_deleted == False)  # noqa: E712
     if completed is not None:
         query = query.filter(models.Task.completed == completed)
+    if status is not None:
+        query = query.filter(models.Task.status == status)
+    if priority is not None:
+        query = query.filter(models.Task.priority == priority)
+    if q is not None:
+        search_fmt = f"%{q}%"
+        query = query.filter(
+            (models.Task.title.ilike(search_fmt)) | (models.Task.description.ilike(search_fmt))
+        )
+
     tasks = query.order_by(models.Task.created_at.desc()).all()
 
-    if completed is None:
+    if completed is None and status is None and priority is None and q is None and not include_deleted:
         cache.set(CACHE_KEY_ALL_TASKS, [schemas.TaskOut.model_validate(t).model_dump() for t in tasks])
     return tasks
 
 
+@app.get("/tasks/paginated", response_model=schemas.PaginatedResponse[schemas.TaskOut], tags=["tasks"])
+def list_tasks_paginated(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=settings.default_page_size, ge=1, le=settings.max_page_size),
+    completed: bool | None = Query(default=None),
+    status: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Task).filter(models.Task.is_deleted == False)  # noqa: E712
+    if completed is not None:
+        query = query.filter(models.Task.completed == completed)
+    if status is not None:
+        query = query.filter(models.Task.status == status)
+    if priority is not None:
+        query = query.filter(models.Task.priority == priority)
+    if q is not None:
+        search_fmt = f"%{q}%"
+        query = query.filter(
+            (models.Task.title.ilike(search_fmt)) | (models.Task.description.ilike(search_fmt))
+        )
+
+    total = query.count()
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    items = query.order_by(models.Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    return schemas.PaginatedResponse(
+        items=[schemas.TaskOut.model_validate(item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
 @app.get("/tasks/{task_id}", response_model=schemas.TaskOut, tags=["tasks"])
 def get_task(task_id: int, db: Session = Depends(get_db)):
+    cached = cache.get(cache.task_detail_key(task_id))
+    if cached is not None:
+        return cached
+
     task = db.get(models.Task, task_id)
-    if task is None:
+    if task is None or task.is_deleted:
         raise HTTPException(status_code=404, detail="task not found")
+
+    out = schemas.TaskOut.model_validate(task)
+    cache.set(cache.task_detail_key(task_id), out.model_dump())
     return task
 
 
 @app.put("/tasks/{task_id}", response_model=schemas.TaskOut, tags=["tasks"])
 def update_task(task_id: int, payload: schemas.TaskUpdate, db: Session = Depends(get_db)):
     task = db.get(models.Task, task_id)
-    if task is None:
+    if task is None or task.is_deleted:
         raise HTTPException(status_code=404, detail="task not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "tags" in data and data["tags"] is not None:
+        data["tags"] = ",".join(data["tags"])
+    if "completed" in data:
+        data["status"] = (
+            models.TaskStatus.COMPLETED.value if data["completed"] else models.TaskStatus.PENDING.value
+        )
+    elif "status" in data and data["status"] is not None:
+        data["completed"] = data["status"] == models.TaskStatus.COMPLETED.value
+
+    for field, value in data.items():
         setattr(task, field, value)
 
     db.commit()
     db.refresh(task)
-    cache.invalidate(CACHE_KEY_ALL_TASKS)
+    cache.invalidate_task(task_id)
     return task
 
 
 @app.delete("/tasks/{task_id}", status_code=204, tags=["tasks"])
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(task_id: int, permanent: bool = Query(default=False), db: Session = Depends(get_db)):
     task = db.get(models.Task, task_id)
-    if task is None:
+    if task is None or (task.is_deleted and not permanent):
         raise HTTPException(status_code=404, detail="task not found")
-    db.delete(task)
+
+    if permanent:
+        db.delete(task)
+    else:
+        task.is_deleted = True
+        task.deleted_at = models.utcnow()
+
     db.commit()
-    cache.invalidate(CACHE_KEY_ALL_TASKS)
+    cache.invalidate_task(task_id)
     return None
+
+
+@app.post("/tasks/{task_id}/restore", response_model=schemas.TaskOut, tags=["tasks"])
+def restore_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.get(models.Task, task_id)
+    if task is None or not task.is_deleted:
+        raise HTTPException(status_code=404, detail="task not found or not deleted")
+
+    task.is_deleted = False
+    task.deleted_at = None
+    db.commit()
+    db.refresh(task)
+    cache.invalidate_task(task_id)
+    return task
+
