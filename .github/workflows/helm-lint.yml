@@ -1,0 +1,50 @@
+name: Helm Chart Quality & Linting
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-validate:
+    name: Lint & Template Dry-Run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Lint Helm Chart
+        run: helm lint helm/taskapi --strict
+
+      - name: Validate Default Values Template
+        run: |
+          helm template taskapi-test helm/taskapi \
+            --values helm/taskapi/values.yaml \
+            --debug > /dev/null
+
+      - name: Validate Staging Values Template
+        run: |
+          helm template taskapi-staging helm/taskapi \
+            --values helm/taskapi/values-staging.yaml \
+            --debug > /dev/null
+
+      - name: Validate Production Values Template
+        run: |
+          helm template taskapi-prod helm/taskapi \
+            --values helm/taskapi/values-prod.yaml \
+            --debug > /dev/null
