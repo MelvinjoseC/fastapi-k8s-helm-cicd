@@ -12,7 +12,27 @@ metadata:
 spec:
   groups:
     - name: {{ include "taskapi.name" . }}.rules
-      rules:
+        - alert: TaskAPISLOBurnRateFast
+          expr: |
+            (
+              sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}",status=~"5.."}[1h]))
+              /
+              sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}"}[1h]))
+            ) > (14.4 * (1 - 0.999))
+            and
+            (
+              sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}"}[5m]))
+            ) > (14.4 * (1 - 0.999))
+          for: 2m
+          labels:
+            severity: critical
+            tier: api
+          annotations:
+            summary: "Task API fast error budget burn rate (14.4x)"
+            description: "High error rate is consuming 2% of the monthly error budget in 1 hour."
+
         - alert: TaskAPIHighErrorRate
           expr: |
             sum(rate(http_requests_total{job="{{ include "taskapi.name" . }}",status=~"5.."}[5m]))
@@ -66,4 +86,14 @@ spec:
           annotations:
             summary: "Task API HPA at max replicas"
             description: "Autoscaler has been at its max replica count for 10+ minutes - consider raising maxReplicas or investigating load."
+
+        - alert: TaskAPICacheDegraded
+          expr: |
+            rate(taskapi_cache_operations_total{status="error"}[5m]) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Task API Redis cache operation errors"
+            description: "Redis cache is experiencing recurring communication errors; requests are falling back to Postgres."
 {{- end }}
