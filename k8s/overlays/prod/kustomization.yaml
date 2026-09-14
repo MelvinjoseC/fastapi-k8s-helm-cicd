@@ -43,6 +43,7 @@ patches:
 
 configMapGenerator:
   - name: taskapi-config
+    namespace: taskapi
     behavior: merge
     literals:
       - APP_ENV=production
