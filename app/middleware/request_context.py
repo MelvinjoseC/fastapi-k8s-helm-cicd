@@ -1,4 +1,4 @@
-﻿"""Request context and correlation ID tracking middleware.
+"""Request context and correlation ID tracking middleware.
 Injects unique X-Request-ID and tracks request duration.
 """
 import time

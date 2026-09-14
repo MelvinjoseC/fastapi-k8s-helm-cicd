@@ -1,4 +1,4 @@
-﻿"""Structured logging configuration for production workloads.
+"""Structured logging configuration for production workloads.
 Outputs JSON formatted logs in production or human-readable logs in development.
 """
 import json

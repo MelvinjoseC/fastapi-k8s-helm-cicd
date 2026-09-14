@@ -1,4 +1,4 @@
-﻿"""Domain exceptions and standardized RFC 7807 error response handlers.
+"""Domain exceptions and standardized RFC 7807 error response handlers.
 """
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional

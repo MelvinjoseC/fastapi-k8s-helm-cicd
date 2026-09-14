@@ -1,4 +1,4 @@
-﻿"""Pydantic schemas and validation for the Task management API.
+"""Pydantic schemas and validation for the Task management API.
 """
 from datetime import datetime
 from typing import Generic, List, Optional, TypeVar

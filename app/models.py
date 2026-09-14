@@ -1,4 +1,4 @@
-﻿"""SQLAlchemy database models for Task management domain.
+"""SQLAlchemy database models for Task management domain.
 """
 from datetime import datetime, timezone
 from enum import Enum

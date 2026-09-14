@@ -1,4 +1,4 @@
-﻿"""Thin, resilient Redis caching layer.
+"""Thin, resilient Redis caching layer.
 
 Design choice: caching is an optimization, not a dependency. If Redis is
 unreachable (e.g. mid-rollout, network blip, or simply disabled), every
