@@ -2,9 +2,16 @@ __pycache__
 *.pyc
 *.pyo
 .pytest_cache
+.coverage
+htmlcov/
 .env
 *.db
 .git
 .venv
 venv
-tests
+tests/
+*.md
+.github/
+docs/
+helm/
+k8s/
