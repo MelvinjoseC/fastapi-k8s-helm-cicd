@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapi-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: taskapi
+    app.kubernetes.io/part-of: taskapi-platform
+    environment: prod
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/MelvinjoseC/fastapi-k8s-helm-cicd.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskapi-prod
+  syncPolicy:
+    automated:
+      prune: false # Manual sync or gated approval for production changes
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
