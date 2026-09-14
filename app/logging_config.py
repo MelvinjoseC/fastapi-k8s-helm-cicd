@@ -1,14 +1,14 @@
 """Structured logging configuration for production workloads.
 Outputs JSON formatted logs in production or human-readable logs in development.
 """
+
 import json
 import logging
 import sys
 from contextvars import ContextVar
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-correlation_id_ctx: ContextVar[Optional[str]] = ContextVar("correlation_id_ctx", default=None)
+correlation_id_ctx: ContextVar[str | None] = ContextVar("correlation_id_ctx", default=None)
 
 
 class JSONFormatter(logging.Formatter):
@@ -16,7 +16,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_obj = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -45,8 +45,6 @@ def setup_logging(log_level: str = "INFO", log_format: str = "json") -> None:
         handler.setFormatter(JSONFormatter())
     else:
         handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s [%(levelname)s] %(name)s (%(filename)s:%(lineno)d): %(message)s"
-            )
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s (%(filename)s:%(lineno)d): %(message)s")
         )
     root_logger.addHandler(handler)

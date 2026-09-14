@@ -1,5 +1,5 @@
-"""Custom Prometheus operational and domain metrics for observability.
-"""
+"""Custom Prometheus operational and domain metrics for observability."""
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # Business metrics

@@ -6,7 +6,7 @@ image can be promoted across dev / staging / prod without rebuilding,
 following the 12-factor app methodology. In Kubernetes these are injected
 via ConfigMaps (non-sensitive) and Secrets (sensitive).
 """
-from typing import List, Union
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     cache_enabled: bool = True
 
     # Security & Networking
-    cors_origins: Union[List[str], str] = ["*"]
-    allowed_hosts: Union[List[str], str] = ["*"]
+    cors_origins: list[str] | str = ["*"]
+    allowed_hosts: list[str] | str = ["*"]
     enable_security_headers: bool = True
 
     # Rate Limiting
@@ -54,11 +54,10 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", "allowed_hosts", mode="before")
     @classmethod
-    def assemble_list(cls, v: Union[str, List[str]]) -> List[str]:
+    def assemble_list(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v if isinstance(v, list) else [v]
 
 
 settings = Settings()
-

@@ -10,14 +10,9 @@ and observability. Endpoints:
   Readiness     GET /ready    - can it actually serve traffic? (checks DB)
   Metrics       GET /metrics  - Prometheus scrape target
 """
+
 import logging
 from contextlib import asynccontextmanager
-from typing import List
-
-from fastapi import Depends, FastAPI, HTTPException, Query
-from prometheus_fastapi_instrumentator import Instrumentator
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 import cache
 import metrics
@@ -25,7 +20,11 @@ import models
 import schemas
 from config import settings
 from database import get_db, init_db
+from fastapi import Depends, FastAPI, HTTPException, Query
 from logging_config import setup_logging
+from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 setup_logging(settings.log_level, settings.log_format)
 logger = logging.getLogger("taskapi")
@@ -41,8 +40,8 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.app_name)
 
 
-from fastapi.middleware.cors import CORSMiddleware
 from exceptions import AppException, app_exception_handler
+from fastapi.middleware.cors import CORSMiddleware
 from middleware.request_context import RequestCorrelationMiddleware
 from middleware.security import SecurityHeadersMiddleware
 
@@ -116,7 +115,7 @@ def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
     return task
 
 
-@app.get("/tasks", response_model=List[schemas.TaskOut], tags=["tasks"])
+@app.get("/tasks", response_model=list[schemas.TaskOut], tags=["tasks"])
 def list_tasks(
     completed: bool | None = Query(default=None),
     status: str | None = Query(default=None),
@@ -178,7 +177,9 @@ def list_tasks_paginated(
 
     total = query.count()
     total_pages = max(1, (total + page_size - 1) // page_size)
-    items = query.order_by(models.Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    items = (
+        query.order_by(models.Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    )
 
     return schemas.PaginatedResponse(
         items=[schemas.TaskOut.model_validate(item) for item in items],
@@ -265,4 +266,3 @@ def restore_task(task_id: int, db: Session = Depends(get_db)):
     if not task.completed:
         metrics.active_tasks_gauge.inc()
     return task
-

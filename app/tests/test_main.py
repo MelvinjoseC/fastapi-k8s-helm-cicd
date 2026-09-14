@@ -180,11 +180,13 @@ def test_paginated_tasks(client):
 
 def test_database_health_check():
     import database
+
     assert database.check_db_health() is True
 
 
 def test_cache_stats_and_ping():
     import cache
+
     stats = cache.get_stats()
     assert isinstance(stats, dict)
     assert "hits" in stats
@@ -192,7 +194,8 @@ def test_cache_stats_and_ping():
 
 
 def test_domain_exceptions_handling():
-    from exceptions import AppException, ResourceNotFoundError, ConflictError
+    from exceptions import ConflictError, ResourceNotFoundError
+
     err = ResourceNotFoundError("Task", 42)
     assert err.status_code == 404
     assert err.error_code == "RESOURCE_NOT_FOUND"

@@ -1,8 +1,8 @@
 """Standalone database migration runner for init containers and Kubernetes Jobs.
 Performs exponential backoff connectivity check and applies Alembic migrations to head.
 """
+
 import logging
-import os
 import sys
 import time
 from pathlib import Path

@@ -8,9 +8,9 @@ from sqlalchemy import engine_from_config, pool
 # Add app directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import models  # noqa: F401 - ensure models are registered on Base.metadata
 from config import settings
 from database import Base
-import models  # noqa: F401 - ensure models are registered on Base.metadata
 
 config = context.config
 

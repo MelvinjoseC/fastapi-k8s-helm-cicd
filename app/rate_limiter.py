@@ -1,15 +1,16 @@
 """Redis-backed sliding window rate limiting middleware.
 Protects API from burst abuse with graceful soft failure if cache is unreachable.
 """
+
 import logging
 import time
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
 
 import cache
 from config import settings
 from exceptions import create_problem_response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 logger = logging.getLogger("taskapi.ratelimit")
 
@@ -25,7 +26,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
         # Determine client identifier
         forwarded = request.headers.get("X-Forwarded-For")
-        client_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+        client_ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else "unknown")
+        )
 
         client = cache._get_client()
         if client is None:

@@ -1,7 +1,8 @@
-"""Domain exceptions and standardized RFC 7807 error response handlers.
-"""
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+"""Domain exceptions and standardized RFC 7807 error response handlers."""
+
+from datetime import UTC, datetime
+from typing import Any
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
@@ -14,7 +15,7 @@ class AppException(Exception):
         detail: str,
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
         error_code: str = "INTERNAL_ERROR",
-        extra: Optional[Dict[str, Any]] = None,
+        extra: dict[str, Any] | None = None,
     ):
         super().__init__(detail)
         self.detail = detail
@@ -58,7 +59,7 @@ def create_problem_response(
     detail: str,
     error_code: str,
     instance: str,
-    extra: Optional[Dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> JSONResponse:
     content = {
         "type": f"https://httpstatuses.com/{status_code}",
@@ -67,7 +68,7 @@ def create_problem_response(
         "detail": detail,
         "error_code": error_code,
         "instance": instance,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     if extra:
         content["extra"] = extra

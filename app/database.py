@@ -1,10 +1,10 @@
 """SQLAlchemy engine/session setup. Works against SQLite (local/test) or
 Postgres (Kubernetes) depending on DATABASE_URL with zero code changes.
 """
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base, sessionmaker
 
 from config import settings
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 is_sqlite = settings.database_url.startswith("sqlite")
 connect_args = {"check_same_thread": False} if is_sqlite else {}

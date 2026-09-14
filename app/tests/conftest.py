@@ -9,13 +9,12 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["CACHE_ENABLED"] = "false"
 
 import pytest  # noqa: E402
+from database import Base, get_db  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from main import app  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-from database import Base, get_db  # noqa: E402
-from main import app  # noqa: E402
 
 engine = create_engine(
     "sqlite:///:memory:",

@@ -6,24 +6,24 @@ method here fails soft and the API falls straight through to Postgres
 instead of throwing 500s. This is the same resilience pattern you'd want
 in any service that treats a cache as best-effort.
 """
+
 import json
 import logging
 import random
-from typing import Any, Dict, Optional
+from typing import Any
 
 import redis
-
 from config import settings
 
 logger = logging.getLogger("taskapi.cache")
 
-_client: Optional[redis.Redis] = None
+_client: redis.Redis | None = None
 
 # In-process stats counter for local observability
 _cache_stats = {"hits": 0, "misses": 0, "sets": 0, "errors": 0}
 
 
-def _get_client() -> Optional[redis.Redis]:
+def _get_client() -> redis.Redis | None:
     global _client
     if not settings.cache_enabled:
         return None
@@ -48,7 +48,7 @@ def task_detail_key(task_id: int) -> str:
     return f"tasks:detail:{task_id}"
 
 
-def get(key: str) -> Optional[Any]:
+def get(key: str) -> Any | None:
     """Retrieve value from cache. Fails soft and logs warning on error."""
     client = _get_client()
     if client is None:
@@ -67,7 +67,7 @@ def get(key: str) -> Optional[Any]:
         return None
 
 
-def set(key: str, value: Any, ttl: Optional[int] = None) -> None:
+def set(key: str, value: Any, ttl: int | None = None) -> None:
     """Store value in cache with TTL jitter to prevent cache stampedes."""
     client = _get_client()
     if client is None:
@@ -113,6 +113,6 @@ def ping() -> bool:
         return False
 
 
-def get_stats() -> Dict[str, int]:
+def get_stats() -> dict[str, int]:
     """Return cache operational metrics."""
     return dict(_cache_stats)

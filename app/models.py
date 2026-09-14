@@ -1,15 +1,14 @@
-"""SQLAlchemy database models for Task management domain.
-"""
-from datetime import datetime, timezone
+"""SQLAlchemy database models for Task management domain."""
+
+from datetime import UTC, datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-
 from database import Base
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TaskStatus(str, Enum):

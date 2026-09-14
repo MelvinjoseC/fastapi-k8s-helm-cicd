@@ -1,11 +1,11 @@
 """OpenTelemetry distributed tracing configuration.
 Provides seamless trace propagation and spans across HTTP, database, and cache calls.
 """
+
 import logging
-from typing import Optional
-from fastapi import FastAPI
 
 from config import settings
+from fastapi import FastAPI
 
 logger = logging.getLogger("taskapi.tracing")
 
