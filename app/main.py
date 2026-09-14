@@ -61,6 +61,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+from rate_limiter import RateLimiterMiddleware
+
+app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(RequestCorrelationMiddleware)
 app.add_exception_handler(AppException, app_exception_handler)
 
