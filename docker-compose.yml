@@ -1,7 +1,7 @@
 version: "3.9"
 
-# Mirrors the Kubernetes topology (api + postgres + redis) so local dev
-# behaves the same as the cluster. Run: docker compose up --build
+# Full local development and observability stack (API + Postgres + Redis + Prometheus + Jaeger)
+# Run: docker compose up --build
 
 services:
   api:
@@ -11,10 +11,16 @@ services:
     environment:
       APP_ENV: development
       LOG_LEVEL: info
+      LOG_FORMAT: json
       DATABASE_URL: postgresql://taskapi:taskapi@postgres:5432/taskapi
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       CACHE_ENABLED: "true"
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_REQUESTS: "120"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
+      OTEL_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +57,26 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    depends_on:
+      - api
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "16686:16686" # Jaeger Web UI
+      - "4317:4317"   # OTLP gRPC receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
 
 volumes:
   pgdata:
