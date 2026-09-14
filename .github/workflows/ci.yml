@@ -25,9 +25,14 @@ jobs:
           cache: "pip"
           cache-dependency-path: "app/requirements-dev.txt"
       - run: pip install -r app/requirements-dev.txt
-      - run: flake8 --max-line-length=110 --extend-ignore=E203,W503 app --exclude=app/tests/__pycache__
-      - run: black --check app
-      - run: bandit -r app -x app/tests
+      - name: Lint and format check with Ruff
+        run: |
+          ruff check app
+          ruff format --check app
+      - name: Type check with Mypy
+        run: mypy app
+      - name: AST Security analysis with Bandit
+        run: bandit -r app -x app/tests,app/alembic
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
@@ -41,7 +46,7 @@ jobs:
 
 
   test:
-    name: Unit tests
+    name: Unit tests & coverage
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -52,9 +57,9 @@ jobs:
           cache: "pip"
           cache-dependency-path: "app/requirements-dev.txt"
       - run: pip install -r app/requirements-dev.txt
-      - name: Run pytest with coverage
+      - name: Run pytest with coverage enforcement
         working-directory: app
-        run: pytest -v --maxfail=1
+        run: pytest -v --cov=. --cov-report=xml --cov-report=term-missing
       - name: Smoke test the running server
         working-directory: app
         run: |
