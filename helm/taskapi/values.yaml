@@ -79,6 +79,11 @@ podDisruptionBudget:
   enabled: true
   minAvailable: 1
 
+networkPolicy:
+  enabled: true
+  allowPrometheus: true
+  allowIngress: true
+
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
