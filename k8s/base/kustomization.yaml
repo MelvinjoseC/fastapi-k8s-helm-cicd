@@ -20,6 +20,8 @@ resources:
   - networkpolicy.yaml
   - ingress.yaml
   - migration-job.yaml
+  - resourcequota.yaml
+  - limitrange.yaml
 
 images:
   - name: ghcr.io/MelvinjoseC/fastapi-k8s-helm-cicd
