@@ -21,6 +21,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from rate_limiter import RateLimiterMiddleware
 from routers.health import router as health_router
 from routers.tasks import router as tasks_router
+from starlette.middleware.gzip import GZipMiddleware
 from tracing import setup_tracing
 
 setup_logging(settings.log_level, settings.log_format)
@@ -43,6 +44,9 @@ app = FastAPI(
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
+if settings.enable_gzip:
+    app.add_middleware(GZipMiddleware, minimum_size=settings.gzip_min_size)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] | str = ["*"]
     allowed_hosts: list[str] | str = ["*"]
     enable_security_headers: bool = True
+    enable_gzip: bool = True
+    gzip_min_size: int = 500
 
     # Rate Limiting
     rate_limit_enabled: bool = True
