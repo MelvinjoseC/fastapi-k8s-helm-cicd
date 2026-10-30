@@ -3,6 +3,9 @@ Provides seamless trace propagation and spans across HTTP, database, and cache c
 """
 
 import logging
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import Any
 
 from config import settings
 from fastapi import FastAPI
@@ -17,9 +20,11 @@ def setup_tracing(app: FastAPI) -> None:
         return
 
     try:
+        from database import engine
         from opentelemetry import trace
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -37,6 +42,8 @@ def setup_tracing(app: FastAPI) -> None:
         trace.set_tracer_provider(provider)
 
         FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+        SQLAlchemyInstrumentor().instrument(engine=engine, tracer_provider=provider)
+
         logger.info(
             "OpenTelemetry initialized with OTLP exporter at %s",
             settings.otel_exporter_otlp_endpoint,
@@ -48,3 +55,23 @@ def setup_tracing(app: FastAPI) -> None:
         )
     except Exception as exc:
         logger.error("Failed to initialize OpenTelemetry tracing: %s", exc)
+
+
+@contextmanager
+def trace_span(name: str, attributes: dict[str, Any] | None = None) -> Generator[Any, None, None]:
+    """Safe context manager to trace operations without hard dependency on OpenTelemetry."""
+    if not settings.otel_enabled:
+        yield None
+        return
+
+    try:
+        from opentelemetry import trace
+
+        tracer = trace.get_tracer("taskapi")
+        with tracer.start_as_current_span(name) as span:
+            if attributes:
+                for k, v in attributes.items():
+                    span.set_attribute(k, v)
+            yield span
+    except Exception:
+        yield None
