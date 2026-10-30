@@ -1,4 +1,7 @@
 """Task repository encapsulating persistence and queries for Task entities."""
+
+from datetime import datetime
+
 from models import Task, utcnow
 from sqlalchemy.orm import Session
 
@@ -20,6 +23,9 @@ class TaskRepository(BaseRepository[Task]):
         completed: bool | None = None,
         status: str | None = None,
         priority: str | None = None,
+        assigned_to: str | None = None,
+        due_before: datetime | None = None,
+        due_after: datetime | None = None,
         q: str | None = None,
         include_deleted: bool = False,
         sort_by: str = "created_at",
@@ -31,6 +37,9 @@ class TaskRepository(BaseRepository[Task]):
             completed=completed,
             status=status,
             priority=priority,
+            assigned_to=assigned_to,
+            due_before=due_before,
+            due_after=due_after,
             q=q,
             include_deleted=include_deleted,
         )
@@ -53,6 +62,9 @@ class TaskRepository(BaseRepository[Task]):
         completed: bool | None = None,
         status: str | None = None,
         priority: str | None = None,
+        assigned_to: str | None = None,
+        due_before: datetime | None = None,
+        due_after: datetime | None = None,
         q: str | None = None,
         include_deleted: bool = False,
     ) -> int:
@@ -60,6 +72,9 @@ class TaskRepository(BaseRepository[Task]):
             completed=completed,
             status=status,
             priority=priority,
+            assigned_to=assigned_to,
+            due_before=due_before,
+            due_after=due_after,
             q=q,
             include_deleted=include_deleted,
         )
@@ -89,7 +104,7 @@ class TaskRepository(BaseRepository[Task]):
             .filter(
                 Task.is_deleted == False,  # noqa: E712
                 Task.completed == False,  # noqa: E712
-                Task.due_date != None,  # noqa: E711
+                Task.due_date.is_not(None),
                 Task.due_date < now,
             )
             .count()
@@ -127,6 +142,9 @@ class TaskRepository(BaseRepository[Task]):
         completed: bool | None = None,
         status: str | None = None,
         priority: str | None = None,
+        assigned_to: str | None = None,
+        due_before: datetime | None = None,
+        due_after: datetime | None = None,
         q: str | None = None,
         include_deleted: bool = False,
     ):
@@ -139,6 +157,12 @@ class TaskRepository(BaseRepository[Task]):
             query = query.filter(Task.status == status)
         if priority is not None:
             query = query.filter(Task.priority == priority)
+        if assigned_to is not None:
+            query = query.filter(Task.assigned_to == assigned_to)
+        if due_before is not None:
+            query = query.filter(Task.due_date <= due_before)
+        if due_after is not None:
+            query = query.filter(Task.due_date >= due_after)
         if q is not None:
             search_fmt = f"%{q}%"
             query = query.filter(

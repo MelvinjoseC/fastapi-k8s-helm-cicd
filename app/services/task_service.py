@@ -150,11 +150,25 @@ class TaskService:
         completed: bool | None = None,
         status: str | None = None,
         priority: str | None = None,
+        assigned_to: str | None = None,
+        due_before: Any = None,
+        due_after: Any = None,
         q: str | None = None,
         include_deleted: bool = False,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> list[models.Task]:
         is_default_query = (
-            completed is None and status is None and priority is None and q is None and not include_deleted
+            completed is None
+            and status is None
+            and priority is None
+            and assigned_to is None
+            and due_before is None
+            and due_after is None
+            and q is None
+            and not include_deleted
+            and sort_by == "created_at"
+            and sort_order == "desc"
         )
         if is_default_query:
             cached = cache.get(CACHE_KEY_ALL_TASKS)
@@ -165,8 +179,13 @@ class TaskService:
             completed=completed,
             status=status,
             priority=priority,
+            assigned_to=assigned_to,
+            due_before=due_before,
+            due_after=due_after,
             q=q,
             include_deleted=include_deleted,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
 
         if is_default_query:
@@ -183,15 +202,33 @@ class TaskService:
         completed: bool | None = None,
         status: str | None = None,
         priority: str | None = None,
+        assigned_to: str | None = None,
+        due_before: Any = None,
+        due_after: Any = None,
         q: str | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> schemas.PaginatedResponse[schemas.TaskOut]:
-        total = self.repo.count(completed=completed, status=status, priority=priority, q=q)
+        total = self.repo.count(
+            completed=completed,
+            status=status,
+            priority=priority,
+            assigned_to=assigned_to,
+            due_before=due_before,
+            due_after=due_after,
+            q=q,
+        )
         offset = (page - 1) * page_size
         items = self.repo.list(
             completed=completed,
             status=status,
             priority=priority,
+            assigned_to=assigned_to,
+            due_before=due_before,
+            due_after=due_after,
             q=q,
+            sort_by=sort_by,
+            sort_order=sort_order,
             offset=offset,
             limit=page_size,
         )

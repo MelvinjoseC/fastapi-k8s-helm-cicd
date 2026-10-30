@@ -119,7 +119,10 @@ def list_tasks(
     completed: bool | None = Query(default=None),
     status: str | None = Query(default=None),
     priority: str | None = Query(default=None),
+    assigned_to: str | None = Query(default=None),
     q: str | None = Query(default=None, description="Search term in title or description"),
+    sort_by: str = Query(default="created_at", description="Field to sort by"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     include_deleted: bool = Query(default=False),
 ):
     """List all tasks with optional filters."""
@@ -127,8 +130,11 @@ def list_tasks(
         completed=completed,
         status=status,
         priority=priority,
+        assigned_to=assigned_to,
         q=q,
         include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 
@@ -140,6 +146,9 @@ def list_tasks_paginated(
     completed: bool | None = Query(default=None),
     status: str | None = Query(default=None),
     priority: str | None = Query(default=None),
+    assigned_to: str | None = Query(default=None),
+    sort_by: str = Query(default="created_at"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     q: str | None = Query(default=None),
 ):
     """Retrieve a paginated list of tasks."""
@@ -149,6 +158,9 @@ def list_tasks_paginated(
         completed=completed,
         status=status,
         priority=priority,
+        assigned_to=assigned_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
         q=q,
     )
 
