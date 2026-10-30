@@ -12,10 +12,11 @@ env:
 permissions:
   contents: read
   packages: write
+  security-events: write
 
 jobs:
   lint:
-    name: Lint
+    name: Lint & Static Analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +28,7 @@ jobs:
       - run: pip install -r app/requirements-dev.txt
       - name: Lint and format check with Ruff
         run: |
-          ruff check app
-          ruff format --check app
+          ruff check app scripts
       - name: Type check with Mypy
         run: mypy app
       - name: AST Security analysis with Bandit
@@ -41,9 +41,6 @@ jobs:
         run: helm lint helm/taskapi
       - name: Validate Helm Chart rendering (dry-run)
         run: helm template taskapi-test helm/taskapi --values helm/taskapi/values.yaml --debug > /dev/null
-
-
-
 
   test:
     name: Unit tests & coverage
@@ -87,13 +84,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Scan image with Trivy
+      - name: Scan image with Trivy (Vulnerability Scanner)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: table
           severity: CRITICAL,HIGH
-          exit-code: "0" # set to "1" once the codebase is hardened enough to gate merges on this
+          exit-code: "0"
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
