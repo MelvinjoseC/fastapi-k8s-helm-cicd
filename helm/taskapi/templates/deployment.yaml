@@ -21,6 +21,7 @@ spec:
         {{- include "taskapi.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "taskapi.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 30 }}
       securityContext:
         runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
         runAsUser: {{ .Values.securityContext.runAsUser }}
@@ -66,6 +67,10 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
       volumes:
         - name: tmp
           emptyDir: {}
