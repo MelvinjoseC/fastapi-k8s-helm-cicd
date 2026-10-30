@@ -25,6 +25,7 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "8000"
     spec:
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -51,8 +52,6 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
-          # Liveness only checks the process is alive - no DB calls, so a
-          # temporary DB blip never causes a restart storm.
           livenessProbe:
             httpGet:
               path: /health
@@ -60,8 +59,6 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
-          # Readiness checks real dependencies - pod is pulled from the
-          # Service's endpoints (no traffic) the moment this fails.
           readinessProbe:
             httpGet:
               path: /ready
@@ -69,11 +66,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
             failureThreshold: 2
-          # Catches deploys that hang on startup (e.g. slow migrations)
-          # without that slowness counting against the liveness probe.
           startupProbe:
             httpGet:
-              path: /health
+              path: /health/startup
               port: 8000
             failureThreshold: 30
             periodSeconds: 2
@@ -85,6 +80,10 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
       volumes:
         - name: tmp
           emptyDir: {}
@@ -107,4 +106,3 @@ spec:
           labelSelector:
             matchLabels:
               app: taskapi
-      terminationGracePeriodSeconds: 30
