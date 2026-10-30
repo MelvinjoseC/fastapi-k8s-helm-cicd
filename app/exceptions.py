@@ -34,12 +34,27 @@ class ResourceNotFoundError(AppException):
         )
 
 
+class TaskNotFoundError(ResourceNotFoundError):
+    def __init__(self, task_id: int):
+        super().__init__(resource="Task", identifier=task_id)
+
+
 class ConflictError(AppException):
     def __init__(self, detail: str):
         super().__init__(
             detail=detail,
             status_code=status.HTTP_409_CONFLICT,
             error_code="CONFLICT",
+        )
+
+
+class ValidationError(AppException):
+    def __init__(self, detail: str, field: str | None = None):
+        super().__init__(
+            detail=detail,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code="VALIDATION_ERROR",
+            extra={"field": field} if field else None,
         )
 
 
@@ -50,6 +65,25 @@ class RateLimitExceededError(AppException):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             error_code="RATE_LIMIT_EXCEEDED",
             extra={"retry_after": retry_after},
+        )
+
+
+class DatabaseConnectionError(AppException):
+    def __init__(self, detail: str = "Database connection unavailable"):
+        super().__init__(
+            detail=detail,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error_code="DATABASE_UNAVAILABLE",
+        )
+
+
+class BulkOperationError(AppException):
+    def __init__(self, detail: str, failures: list[dict[str, Any]] | None = None):
+        super().__init__(
+            detail=detail,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="BULK_OPERATION_FAILED",
+            extra={"failures": failures or []},
         )
 
 
