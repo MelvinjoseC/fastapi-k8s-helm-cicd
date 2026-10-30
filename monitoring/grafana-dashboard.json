@@ -4,7 +4,7 @@
   "tags": ["taskapi", "kubernetes", "fastapi", "sre"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "15s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
@@ -117,6 +117,34 @@
         {
           "expr": "sum(container_memory_working_set_bytes{container=\"taskapi\"}) by (pod)",
           "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Bulk Operations Throughput (ops/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "sum(rate(taskapi_bulk_operations_total[5m])) by (operation)",
+          "legendFormat": "Bulk {{operation}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Active Tasks & Circuit Breaker Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "targets": [
+        {
+          "expr": "taskapi_active_tasks_count",
+          "legendFormat": "Active Tasks"
+        },
+        {
+          "expr": "taskapi_circuit_breaker_state",
+          "legendFormat": "Circuit Breaker State (0=closed, 2=open)"
         }
       ]
     }
