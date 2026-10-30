@@ -94,3 +94,23 @@ spec:
           annotations:
             summary: "Task API Redis cache operation errors"
             description: "Redis cache is experiencing recurring communication errors; requests are falling back to Postgres."
+
+        - alert: TaskAPICircuitBreakerOpen
+          expr: |
+            taskapi_circuit_breaker_state == 2
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Task API circuit breaker is OPEN"
+            description: "Circuit breaker {{ $labels.name }} has tripped open due to consecutive upstream failures."
+
+        - alert: TaskAPIP99LatencySpike
+          expr: |
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job="taskapi"}[5m])) by (le)) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Task API p99 latency spike above 2s"
+            description: "99th percentile response time is above 2 seconds for 5 minutes."
