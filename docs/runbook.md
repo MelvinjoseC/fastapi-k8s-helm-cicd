@@ -30,60 +30,53 @@ This runbook provides actionable procedures for responding to high-priority oper
      kubectl rollout undo deployment/taskapi -n taskapi
      ```
 
-### 1.2 Alert: `TaskAPIHighLatency`
-- **Severity**: Warning (P2)
-- **Symptom**: p95 request latency exceeds 1 second for 10 minutes.
+### 1.2 Alert: `TaskAPICircuitBreakerOpen`
+- **Severity**: Critical (P1)
+- **Symptom**: The circuit breaker for Redis caching has tripped open after consecutive communication failures.
 - **Triage Steps**:
-  1. Check Redis cache hit ratio in Grafana dashboard (`taskapi-overview`).
-  2. Verify Redis responsiveness:
+  1. Inspect Redis pod status and connectivity:
      ```bash
+     kubectl get pods -n taskapi -l app=redis
      kubectl exec -it -n taskapi deployment/redis -- redis-cli ping
      ```
-  3. Inspect slow database queries and connection limits:
+  2. Check memory consumption and connection count in Redis:
+     ```bash
+     kubectl exec -it -n taskapi deployment/redis -- redis-cli info memory
+     ```
+  3. Notice: While the circuit breaker is open, requests fail-soft to Postgres automatically without 500 errors.
+
+### 1.3 Alert: `TaskAPIHighLatency` / `TaskAPIP99LatencySpike`
+- **Severity**: Warning (P2)
+- **Symptom**: p95 latency > 1s or p99 latency > 2s for 5+ minutes.
+- **Triage Steps**:
+  1. Check Redis cache hit ratio in Grafana dashboard (`taskapi-overview`).
+  2. Inspect database active queries and slow table scans:
      ```bash
      kubectl exec -it -n taskapi statefulset/postgres -- psql -U taskapi -c "SELECT pid, now() - pg_stat_activity.query_start AS duration, query FROM pg_stat_activity WHERE (now() - pg_stat_activity.query_start) > interval '1 second';"
      ```
-  4. Check if HPA is scaling appropriately:
+  3. Verify HPA autoscaling status:
      ```bash
      kubectl get hpa taskapi-hpa -n taskapi
      ```
 
-### 1.3 Alert: `TaskAPIPodCrashLooping`
-- **Severity**: Critical (P1)
-- **Symptom**: Repeated pod restarts exceeding failure thresholds.
-- **Triage Steps**:
-  1. Check previous container termination reason:
-     ```bash
-     kubectl describe pod <pod-name> -n taskapi
-     kubectl logs <pod-name> -n taskapi --previous
-     ```
-  2. Common causes:
-     - **OOMKilled**: Memory limit too low. Adjust `resources.limits.memory`.
-     - **Liveness Probe Failure**: Service taking too long to start or deadlocking. Verify startupProbe timing.
-     - **Configuration/Secret Missing**: Ensure `taskapi-secret` and `taskapi-config` exist.
-
 ---
 
-## 2. Standard Operational Procedures
+## 2. Disaster Recovery & Backup Operations
 
-### 2.1 Database Schema Migrations
-Migrations run automatically via the Helm pre-upgrade hook. To execute manually:
+### 2.1 Automated Database Backup
+Take a timestamped JSON snapshot of all tasks:
 ```bash
-# Direct in-pod or local run:
-python app/migrate.py
-
-# Check current migration revision:
-alembic current
+python scripts/backup_restore.py backup --output backups/backup_manual.json
 ```
 
-### 2.2 Manual Scale-Out
-To scale replicas when bypassing HPA:
+### 2.2 Database Restore
+Restore tasks from a validated snapshot file:
 ```bash
-kubectl scale deployment/taskapi --replicas=8 -n taskapi
+python scripts/backup_restore.py restore --input backups/backup_manual.json --clear
 ```
 
-### 2.3 Evacuation / Cluster Maintenance
-Drain node safely honoring PodDisruptionBudget:
+### 2.3 Post-Deployment Health Verification
+Run the automated verification suite to probe liveness, readiness, and telemetry endpoints:
 ```bash
-kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+python scripts/health_check.py --url https://taskapi.example.com --retries 5
 ```

@@ -10,7 +10,7 @@
 ![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-An enterprise-grade, production-hardened microservice ecosystem designed to demonstrate an end-to-end DevOps and platform engineering workflow: a containerized **FastAPI** service, database schema migrations via **Alembic**, multi-environment deployments via **Kustomize** and **Helm 3**, declarative GitOps via **Argo CD**, zero-downtime rolling deployments, multi-layer security policies, and distributed observability with **Prometheus**, **Grafana**, and **OpenTelemetry**.
+An enterprise-grade, production-hardened microservice ecosystem designed to demonstrate an end-to-end DevOps and platform engineering workflow: a containerized **FastAPI** service with Clean Architecture (Routers, Services, Repositories), database schema migrations via **Alembic**, multi-environment deployments via **Kustomize** and **Helm 3**, declarative GitOps via **Argo CD ApplicationSet**, zero-downtime rolling deployments, multi-layer security policies, circuit breaker resilience, and distributed observability with **Prometheus**, **Grafana**, and **OpenTelemetry**.
 
 ---
 
@@ -31,7 +31,9 @@ An enterprise-grade, production-hardened microservice ecosystem designed to demo
   ┌─────▼──────────┐              ┌─────▼──────────┐              ┌─────▼──────────┐
   │  Pod 1         │              │  Pod 2         │              │  Pod N         │
   │  - FastAPI App │              │  - FastAPI App │              │  - FastAPI App │
+  │  - Router/Svc  │              │  - Router/Svc  │              │  - Router/Svc  │
   │  - RateLimiter │              │  - RateLimiter │              │  - RateLimiter │
+  │  - CircuitBrkr │              │  - CircuitBrkr │              │  - CircuitBrkr │
   │  - OTel Tracer │              │  - OTel Tracer │              │  - OTel Tracer │
   └─────┬──────────┘              └─────┬──────────┘              └─────┬──────────┘
         │                                │                                │
@@ -40,7 +42,8 @@ An enterprise-grade, production-hardened microservice ecosystem designed to demo
          ┌───────────▼───────────┐                   ┌───────────▼───────────┐
          │ Redis Cache           │                   │ PostgreSQL            │
          │ - Sliding window rate │                   │ - StatefulSet / PVC   │
-         │ - Cache-aside / jitter│                   │ - Alembic Migrations  │
+         │ - Circuit Breaker     │                   │ - Alembic Migrations  │
+         │ - Cache-aside / jitter│                   │ - Audit Columns & Idx │
          └───────────────────────┘                   └───────────────────────┘
                      │                                           │
                      ▼                                           ▼
@@ -57,15 +60,15 @@ See [`docs/architecture.md`](docs/architecture.md) for design decisions, and [`d
 
 | Domain | Tools & Frameworks | Description |
 |---|---|---|
-| **API Application** | Python 3.12, FastAPI, SQLAlchemy 2.0, Pydantic v2 | High-performance async REST API with rich domain modeling |
-| **Data & Cache** | PostgreSQL 16, Redis 7, Alembic | ACID relational storage, resilient cache-aside, schema migrations |
+| **API Application** | Python 3.12, FastAPI, SQLAlchemy 2.0, Pydantic v2 | Layered Clean Architecture (Routers, Services, Repositories) |
+| **Data & Cache** | PostgreSQL 16, Redis 7, Alembic | ACID relational storage, Circuit Breaker cache-aside with stampede protection |
 | **Containerization** | Docker, Multi-stage builds, dumb-init, non-root (UID 10001) | Hardened runtime image compliant with CIS Docker benchmarks |
 | **Kubernetes** | Deployments, HPA, PDB, NetworkPolicy, LimitRange, ResourceQuota | High availability, zero-downtime rolling updates, strict isolation |
-| **Config & Release** | Kustomize (base + dev/staging/prod) & Helm 3 | Declarative overlays, JSON schema validation, pre-upgrade hooks |
-| **GitOps** | Argo CD | Declarative continuous delivery with self-healing reconciliation |
-| **CI/CD** | GitHub Actions, Ruff, Mypy, Bandit, Trivy, CodeQL, kind | End-to-end automated pipelines with real in-cluster smoke tests |
+| **Config & Release** | Kustomize (base + dev/staging/prod) & Helm 3 | Declarative overlays, JSON schema validation, pre-upgrade hooks, startupProbe |
+| **GitOps** | Argo CD & ApplicationSet | Declarative fleet continuous delivery with self-healing reconciliation |
+| **CI/CD** | GitHub Actions, Ruff, Mypy, Bandit, Trivy, CodeQL, kind | End-to-end automated pipelines with real in-cluster smoke tests & schema drift check |
 | **Observability** | Prometheus, OpenTelemetry, Jaeger, Grafana | Custom business metrics, SLO burn rate alerts, distributed tracing |
-| **Quality & Tests** | Pytest, Pytest-Cov (>90% coverage), Load Generator | Comprehensive integration, pagination, security, and stress tests |
+| **Quality & Tests** | Pytest (38+ tests), Pytest-Cov (>90% coverage), Load Generator, Benchmarking | Comprehensive integration, pagination, bulk operations, resilience, and stress tests |
 
 ---
 
@@ -76,28 +79,34 @@ See [`docs/architecture.md`](docs/architecture.md) for design decisions, and [`d
 │   └── workflows/          # CI, CD, CodeQL, and Helm lint workflows
 ├── alembic.ini             # Database migration configuration
 ├── app/
-│   ├── alembic/            # Version-controlled database schema migrations
-│   ├── middleware/         # Security headers, correlation ID, request context
-│   ├── tests/              # Comprehensive test suite (19 test cases)
-│   ├── cache.py            # Resilient Redis cache-aside with jitter
+│   ├── alembic/            # Version-controlled database schema migrations (001-003)
+│   ├── middleware/         # Security headers, correlation ID, XSS sanitization
+│   ├── repositories/       # Generic BaseRepository & TaskRepository persistence layer
+│   ├── routers/            # Modular APIRouters (tasks, health, diagnostics)
+│   ├── services/           # TaskService coordinating transactions, cache, and metrics
+│   ├── tests/              # Comprehensive test suite (38 test cases across all layers)
+│   ├── auth.py             # API Key & Bearer token authentication with RBAC
+│   ├── cache.py            # Resilient Redis cache-aside with Circuit Breaker
 │   ├── config.py           # Pydantic v2 Settings (12-factor methodology)
 │   ├── database.py         # SQLAlchemy engine and connection pooling
 │   ├── Dockerfile          # Multi-stage, dumb-init, non-root container build
-│   ├── exceptions.py       # Domain exceptions and RFC 7807 error responses
-│   ├── logging_config.py   # Structured JSON logger
-│   ├── main.py             # FastAPI entrypoint and endpoint routes
+│   ├── exceptions.py       # Domain exceptions and RFC 7807 problem responses
+│   ├── logging_config.py   # Structured JSON logger with async contextvars
+│   ├── main.py             # FastAPI entrypoint and application bootstrap
 │   ├── metrics.py          # Prometheus counters, gauges, histograms
 │   ├── migrate.py          # Standalone migration runner with retry backoff
-│   ├── models.py           # SQLAlchemy task entity with enums and soft delete
+│   ├── models.py           # SQLAlchemy task entity with audit columns & soft delete
 │   ├── rate_limiter.py     # Sliding-window rate limiter
+│   ├── resilience.py       # Thread-safe Circuit Breaker pattern
 │   ├── requirements.txt    # Production dependencies
 │   ├── requirements-dev.txt# Linting, testing, and security dependencies
-│   ├── schemas.py          # Pydantic request/response schemas and pagination
-│   └── tracing.py          # OpenTelemetry distributed tracing setup
-├── argocd/                 # Argo CD Application CRDs (dev, staging, prod)
+│   ├── schemas.py          # Pydantic request/response schemas, validation, bulk ops
+│   └── tracing.py          # OpenTelemetry distributed tracing & SQLAlchemy hooks
+├── argocd/                 # Argo CD Application & ApplicationSet CRDs
 ├── docker-compose.yml      # Local stack (API, Postgres, Redis, Prometheus, Jaeger)
+├── docker-compose.override.yml.example # Live reload override template
 ├── docs/
-│   ├── adr/                # Architecture Decision Records (0001 - 0004)
+│   ├── adr/                # Architecture Decision Records (0001 - 0006)
 │   ├── api.md              # REST API endpoint reference
 │   ├── architecture.md     # In-depth architectural trade-offs
 │   ├── openapi.json        # Exported static OpenAPI 3.1.0 specification
@@ -105,7 +114,7 @@ See [`docs/architecture.md`](docs/architecture.md) for design decisions, and [`d
 ├── helm/taskapi/           # Production Helm chart (schema, hooks, tests, templates)
 ├── k8s/                    # Raw Kubernetes manifests (base + dev/staging/prod overlays)
 ├── monitoring/             # Grafana dashboards, Prometheus alerting rules
-├── scripts/                # Data seeding and concurrent load testing utilities
+├── scripts/                # Benchmarking, automated health-checks, backups, seed data
 ├── Makefile                # Developer workflow commands
 ├── pyproject.toml          # Ruff, Mypy, Pytest, and Coverage configurations
 ├── README.md               # Project documentation
@@ -121,7 +130,7 @@ See [`docs/architecture.md`](docs/architecture.md) for design decisions, and [`d
 # Start API + PostgreSQL + Redis + Prometheus + Jaeger
 make compose-obs
 ```
-- API: `http://localhost:8000/docs`
+- API Documentation: `http://localhost:8000/docs`
 - Prometheus UI: `http://localhost:9090`
 - Jaeger Tracing UI: `http://localhost:16686`
 
@@ -137,18 +146,19 @@ make migrate
 make run
 ```
 
-### 3. Seed Realistic Sample Data
+### 3. Seed Realistic Sample Data & Benchmarking
 ```bash
+# Populate database with realistic task data
 make seed
+
+# Run performance benchmarking with latency percentiles
+make benchmark
+
+# Run automated deployment health verification
+make health
 ```
 
-### 4. Run Concurrent Load Test
-```bash
-# Stress-test API with 100 concurrent requests
-make load-test
-```
-
-### 5. Run Test Suite with Coverage
+### 4. Run Test Suite with Coverage
 ```bash
 make test-cov
 ```
@@ -191,7 +201,7 @@ helm upgrade --install taskapi ./helm/taskapi \
 make helm-test
 ```
 
-### 4. GitOps with Argo CD
+### 4. GitOps with Argo CD ApplicationSet
 ```bash
 kubectl apply -k argocd/
 ```
@@ -200,13 +210,15 @@ kubectl apply -k argocd/
 
 ## 🛡️ Production & Resilience Highlights
 
-- **Zero-Downtime Rolling Updates**: Configured with `maxSurge: 1`, `maxUnavailable: 0`.
+- **Clean Layered Architecture**: Routers, Services, and Repositories isolate transport from business and persistence logic.
+- **Circuit Breaker Resilience**: Prevents cascading failures when Redis blips, automatically falling soft to PostgreSQL.
+- **Zero-Downtime Rolling Updates**: Configured with `maxSurge: 1`, `maxUnavailable: 0`, and `preStop` sleep lifecycle hooks.
 - **Restricted Pod Security Standard**: Non-root UID `10001`, `seccompProfile: RuntimeDefault`, `readOnlyRootFilesystem: true`, dropping all capabilities.
 - **Topology Spread Constraints & Anti-Affinity**: Pods are evenly distributed across availability zones and worker nodes.
 - **Default-Deny Network Policies**: Explicit egress whitelisting for PostgreSQL, Redis, and kube-dns.
-- **Alembic Helm Hooks**: Pre-upgrade Job hooks migrate the database before new pods receive traffic, eliminating DDL deadlocks.
-- **Resilient Cache-Aside**: Soft degradation when Redis is down; traffic falls back to PostgreSQL without 500 errors.
+- **Alembic Helm Pre-Upgrade Hooks**: Automatic database migrations before new pods receive traffic, eliminating DDL deadlocks.
 - **SLO-Based Alerting**: Multi-window burn-rate alerts notify operators when the 99.9% error budget is being consumed too quickly.
+- **OpenAPI Schema Drift Enforcement**: CI pipeline automatically verifies code-to-schema synchronization.
 
 ---
 
@@ -220,6 +232,8 @@ kubectl apply -k argocd/
 - [ADR 0002: Database Migrations with Alembic](docs/adr/0002-database-migrations-with-alembic.md)
 - [ADR 0003: Declarative GitOps Workflow with Argo CD](docs/adr/0003-gitops-with-argocd.md)
 - [ADR 0004: Helm Schema Validation and Lifecycle Hooks](docs/adr/0004-helm-schema-validation-and-hooks.md)
+- [ADR 0005: Service and Repository Architecture Pattern](docs/adr/0005-service-and-repository-pattern.md)
+- [ADR 0006: Distributed Circuit Breaker and Cache Stampede Mitigation](docs/adr/0006-circuit-breaker-and-resilience.md)
 
 ---
 

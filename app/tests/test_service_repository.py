@@ -1,8 +1,7 @@
 """Unit tests for TaskRepository and TaskService layers."""
 
-import pytest
-
 import models
+import pytest
 import schemas
 from exceptions import TaskNotFoundError
 from repositories.task_repository import TaskRepository
