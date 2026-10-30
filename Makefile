@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint lint-ruff format typecheck run migrate seed load-test export-schema \
+.PHONY: help install test test-cov lint lint-ruff format typecheck run migrate seed load-test benchmark health backup export-schema \
 	    compose-up compose-down compose-obs docker-build kind-up kind-down \
 	    k8s-deploy-dev k8s-deploy-staging k8s-deploy-prod k8s-delete-dev helm-install helm-upgrade helm-test
 
@@ -8,13 +8,16 @@ help:
 	@echo "make test            - run pytest test suite"
 	@echo "make test-cov        - run pytest with terminal and HTML coverage reports"
 	@echo "make lint            - run flake8 + black check"
-	@echo "make lint-ruff       - run ultra-fast ruff linter and format checker"
+	@echo "make lint-ruff       - run ultra-fast ruff linter on app and scripts"
 	@echo "make format          - format code with ruff"
 	@echo "make typecheck       - run mypy static type checking"
 	@echo "make run             - run the API locally with uvicorn"
 	@echo "make migrate         - run Alembic database migrations"
 	@echo "make seed            - seed database with realistic demo task records"
 	@echo "make load-test       - run concurrent load test against API"
+	@echo "make benchmark       - run benchmark with latency percentiles and RPS report"
+	@echo "make health          - run deployment health and readiness verifier"
+	@echo "make backup          - take automated database snapshot to backups/"
 	@echo "make export-schema   - export static docs/openapi.json"
 	@echo ""
 	@echo "--- Containers & Docker Compose ---"
@@ -49,11 +52,11 @@ lint:
 	cd app && ../.venv/bin/black --check .
 
 lint-ruff:
-	ruff check app
-	ruff format --check app
+	ruff check app scripts
+	ruff format --check app scripts
 
 format:
-	ruff format app
+	ruff format app scripts
 
 typecheck:
 	mypy app
@@ -69,6 +72,15 @@ seed:
 
 load-test:
 	python scripts/load_test.py --url http://localhost:8000 -n 100 -c 10
+
+benchmark:
+	python scripts/benchmark.py --url http://localhost:8000 -n 150 -c 15
+
+health:
+	python scripts/health_check.py --url http://localhost:8000
+
+backup:
+	python scripts/backup_restore.py backup
 
 export-schema:
 	python scripts/export_openapi.py
