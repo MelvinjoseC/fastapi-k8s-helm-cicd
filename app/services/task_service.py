@@ -1,0 +1,169 @@
+"""Domain service coordinating business logic, cache invalidation, and metrics for Tasks."""
+
+import logging
+from typing import Any
+
+import cache
+import metrics
+import models
+import schemas
+from exceptions import TaskNotFoundError
+from repositories.task_repository import TaskRepository
+from sqlalchemy.orm import Session
+
+logger = logging.getLogger("taskapi.service")
+CACHE_KEY_ALL_TASKS = "tasks:all"
+
+
+class TaskService:
+    def __init__(self, db: Session):
+        self.db = db
+        self.repo = TaskRepository(db)
+
+    def create_task(self, payload: schemas.TaskCreate) -> models.Task:
+        tags_str = ",".join(payload.tags) if payload.tags else ""
+        priority_val = (
+            payload.priority.value if hasattr(payload.priority, "value") else str(payload.priority)
+        )
+
+        task = models.Task(
+            title=payload.title,
+            description=payload.description,
+            priority=priority_val,
+            status=models.TaskStatus.PENDING.value,
+            due_date=payload.due_date,
+            tags=tags_str,
+        )
+        saved = self.repo.add(task)
+
+        cache.invalidate(CACHE_KEY_ALL_TASKS)
+        metrics.tasks_created_total.labels(priority=saved.priority).inc()
+        metrics.active_tasks_gauge.inc()
+        logger.info("Task created id=%d priority=%s", saved.id, saved.priority)
+        return saved
+
+    def get_task(self, task_id: int) -> models.Task:
+        cached = cache.get(cache.task_detail_key(task_id))
+        if cached is not None:
+            return models.Task(**cached) if isinstance(cached, dict) else cached
+
+        task = self.repo.get_by_id(task_id)
+        if not task:
+            raise TaskNotFoundError(task_id)
+
+        out = schemas.TaskOut.model_validate(task)
+        cache.set(cache.task_detail_key(task_id), out.model_dump())
+        return task
+
+    def list_tasks(
+        self,
+        completed: bool | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        q: str | None = None,
+        include_deleted: bool = False,
+    ) -> list[models.Task]:
+        is_default_query = (
+            completed is None and status is None and priority is None and q is None and not include_deleted
+        )
+        if is_default_query:
+            cached = cache.get(CACHE_KEY_ALL_TASKS)
+            if cached is not None:
+                return cached
+
+        tasks = self.repo.list(
+            completed=completed,
+            status=status,
+            priority=priority,
+            q=q,
+            include_deleted=include_deleted,
+        )
+
+        if is_default_query:
+            cache.set(
+                CACHE_KEY_ALL_TASKS,
+                [schemas.TaskOut.model_validate(t).model_dump() for t in tasks],
+            )
+        return tasks
+
+    def list_tasks_paginated(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        completed: bool | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        q: str | None = None,
+    ) -> schemas.PaginatedResponse[schemas.TaskOut]:
+        total = self.repo.count(completed=completed, status=status, priority=priority, q=q)
+        offset = (page - 1) * page_size
+        items = self.repo.list(
+            completed=completed,
+            status=status,
+            priority=priority,
+            q=q,
+            offset=offset,
+            limit=page_size,
+        )
+        total_pages = max(1, (total + page_size - 1) // page_size)
+
+        return schemas.PaginatedResponse(
+            items=[schemas.TaskOut.model_validate(item) for item in items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+
+    def update_task(self, task_id: int, payload: schemas.TaskUpdate) -> models.Task:
+        task = self.repo.get_by_id(task_id)
+        if not task:
+            raise TaskNotFoundError(task_id)
+
+        data = payload.model_dump(exclude_unset=True)
+        if "tags" in data and data["tags"] is not None:
+            data["tags"] = ",".join(data["tags"])
+        if "completed" in data:
+            data["status"] = (
+                models.TaskStatus.COMPLETED.value if data["completed"] else models.TaskStatus.PENDING.value
+            )
+        elif "status" in data and data["status"] is not None:
+            data["completed"] = data["status"] == models.TaskStatus.COMPLETED.value
+
+        for field, value in data.items():
+            setattr(task, field, value)
+
+        updated = self.repo.update(task)
+        cache.invalidate_task(task_id)
+        if updated.completed:
+            metrics.tasks_completed_total.inc()
+        return updated
+
+    def delete_task(self, task_id: int, permanent: bool = False) -> None:
+        task = self.repo.get_by_id(task_id, include_deleted=permanent)
+        if not task:
+            raise TaskNotFoundError(task_id)
+
+        if permanent:
+            self.repo.delete(task)
+        else:
+            self.repo.soft_delete(task)
+
+        cache.invalidate_task(task_id)
+        metrics.tasks_deleted_total.labels(permanent=str(permanent).lower()).inc()
+        if not task.completed:
+            metrics.active_tasks_gauge.dec()
+
+    def restore_task(self, task_id: int) -> models.Task:
+        task = self.repo.get_by_id(task_id, include_deleted=True)
+        if not task or not task.is_deleted:
+            raise TaskNotFoundError(task_id)
+
+        restored = self.repo.restore(task)
+        cache.invalidate_task(task_id)
+        if not restored.completed:
+            metrics.active_tasks_gauge.inc()
+        return restored
+
+    def get_analytics(self) -> dict[str, Any]:
+        return self.repo.get_analytics_counts()
