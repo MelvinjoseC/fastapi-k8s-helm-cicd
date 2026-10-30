@@ -67,3 +67,29 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     total_pages: int
+
+
+class BulkTaskCreate(BaseModel):
+    tasks: list[TaskCreate] = Field(..., min_length=1, max_length=100)
+
+
+class BulkTaskCreateResponse(BaseModel):
+    created_count: int
+    tasks: list[TaskOut]
+
+
+class BulkTaskUpdate(BaseModel):
+    task_ids: list[int] = Field(..., min_length=1, max_length=100)
+    status: TaskStatus | None = None
+    completed: bool | None = None
+    priority: TaskPriority | None = None
+
+
+class BulkTaskDelete(BaseModel):
+    task_ids: list[int] = Field(..., min_length=1, max_length=100)
+    permanent: bool = False
+
+
+class BulkActionResponse(BaseModel):
+    affected_count: int
+    message: str

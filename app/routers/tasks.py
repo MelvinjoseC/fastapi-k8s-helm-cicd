@@ -25,6 +25,33 @@ def create_task(
     return service.create_task(payload)
 
 
+@router.post("/bulk", response_model=schemas.BulkTaskCreateResponse, status_code=status.HTTP_201_CREATED)
+def bulk_create_tasks(
+    payload: schemas.BulkTaskCreate,
+    service: Annotated[TaskService, Depends(get_task_service)],
+):
+    """Create multiple tasks in a single transaction."""
+    return service.bulk_create(payload)
+
+
+@router.patch("/bulk", response_model=schemas.BulkActionResponse)
+def bulk_update_tasks(
+    payload: schemas.BulkTaskUpdate,
+    service: Annotated[TaskService, Depends(get_task_service)],
+):
+    """Batch update status or priority for multiple tasks."""
+    return service.bulk_update(payload)
+
+
+@router.delete("/bulk", response_model=schemas.BulkActionResponse)
+def bulk_delete_tasks(
+    payload: schemas.BulkTaskDelete,
+    service: Annotated[TaskService, Depends(get_task_service)],
+):
+    """Batch soft or permanent delete for multiple tasks."""
+    return service.bulk_delete(payload)
+
+
 @router.get("", response_model=list[schemas.TaskOut])
 def list_tasks(
     service: Annotated[TaskService, Depends(get_task_service)],

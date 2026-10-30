@@ -42,6 +42,90 @@ class TaskService:
         logger.info("Task created id=%d priority=%s", saved.id, saved.priority)
         return saved
 
+    def bulk_create(self, payload: schemas.BulkTaskCreate) -> schemas.BulkTaskCreateResponse:
+        created_tasks = []
+        for item in payload.tasks:
+            tags_str = ",".join(item.tags) if item.tags else ""
+            priority_val = (
+                item.priority.value if hasattr(item.priority, "value") else str(item.priority)
+            )
+            task = models.Task(
+                title=item.title,
+                description=item.description,
+                priority=priority_val,
+                status=models.TaskStatus.PENDING.value,
+                due_date=item.due_date,
+                tags=tags_str,
+            )
+            self.db.add(task)
+            created_tasks.append(task)
+
+        self.db.commit()
+        for t in created_tasks:
+            self.db.refresh(t)
+            metrics.tasks_created_total.labels(priority=t.priority).inc()
+            metrics.active_tasks_gauge.inc()
+
+        cache.invalidate(CACHE_KEY_ALL_TASKS)
+        return schemas.BulkTaskCreateResponse(
+            created_count=len(created_tasks),
+            tasks=[schemas.TaskOut.model_validate(t) for t in created_tasks],
+        )
+
+    def bulk_update(self, payload: schemas.BulkTaskUpdate) -> schemas.BulkActionResponse:
+        tasks = (
+            self.db.query(models.Task)
+            .filter(models.Task.id.in_(payload.task_ids), models.Task.is_deleted == False)  # noqa: E712
+            .all()
+        )
+        for t in tasks:
+            if payload.status is not None:
+                t.status = payload.status.value if hasattr(payload.status, "value") else payload.status
+                t.completed = t.status == models.TaskStatus.COMPLETED.value
+            elif payload.completed is not None:
+                t.completed = payload.completed
+                t.status = (
+                    models.TaskStatus.COMPLETED.value if payload.completed else models.TaskStatus.PENDING.value
+                )
+            if payload.priority is not None:
+                t.priority = (
+                    payload.priority.value if hasattr(payload.priority, "value") else payload.priority
+                )
+            cache.invalidate_task(t.id)
+
+        self.db.commit()
+        cache.invalidate(CACHE_KEY_ALL_TASKS)
+        return schemas.BulkActionResponse(
+            affected_count=len(tasks),
+            message=f"Successfully updated {len(tasks)} tasks",
+        )
+
+    def bulk_delete(self, payload: schemas.BulkTaskDelete) -> schemas.BulkActionResponse:
+        tasks = (
+            self.db.query(models.Task)
+            .filter(models.Task.id.in_(payload.task_ids))
+            .all()
+        )
+        count = 0
+        for t in tasks:
+            if payload.permanent:
+                self.db.delete(t)
+            else:
+                if not t.is_deleted:
+                    t.is_deleted = True
+                    t.deleted_at = models.utcnow()
+                    if not t.completed:
+                        metrics.active_tasks_gauge.dec()
+            cache.invalidate_task(t.id)
+            count += 1
+
+        self.db.commit()
+        cache.invalidate(CACHE_KEY_ALL_TASKS)
+        return schemas.BulkActionResponse(
+            affected_count=count,
+            message=f"Successfully deleted {count} tasks",
+        )
+
     def get_task(self, task_id: int) -> models.Task:
         cached = cache.get(cache.task_detail_key(task_id))
         if cached is not None:
