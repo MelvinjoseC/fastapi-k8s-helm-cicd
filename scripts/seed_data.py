@@ -3,11 +3,9 @@ Supports seeding via direct DB session or REST API HTTP endpoint.
 """
 import argparse
 import json
-import os
 import random
-import sys
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 SAMPLE_TASKS = [
     {
@@ -73,7 +71,7 @@ def seed_via_http(base_url: str, count: int = 15) -> None:
             "description": sample["description"],
             "priority": sample["priority"],
             "tags": sample["tags"],
-            "due_date": (datetime.now(timezone.utc) + timedelta(days=random.randint(1, 30))).isoformat(),
+            "due_date": (datetime.now(UTC) + timedelta(days=random.randint(1, 30))).isoformat(),
         }
 
         data = json.dumps(payload).encode("utf-8")

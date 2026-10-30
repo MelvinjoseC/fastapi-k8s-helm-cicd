@@ -1,17 +1,14 @@
 """Concurrent load test generator to stress-test Task API, exercise HPA, and verify metrics.
 """
 import argparse
-import json
 import random
-import sys
 import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List
 
 
-def make_request(base_url: str) -> Dict[str, float]:
+def make_request(base_url: str) -> dict[str, float]:
     endpoints = [
         ("GET", "/health"),
         ("GET", "/ready"),
@@ -40,8 +37,8 @@ def make_request(base_url: str) -> Dict[str, float]:
 
 def run_load_test(base_url: str, requests: int, concurrency: int) -> None:
     print(f"Starting load test against {base_url} ({requests} requests, concurrency {concurrency})...")
-    latencies: List[float] = []
-    status_counts: Dict[int, int] = {}
+    latencies: list[float] = []
+    status_counts: dict[int, int] = {}
 
     start_total = time.perf_counter()
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
