@@ -25,11 +25,23 @@ active_tasks_gauge = Gauge(
     "Current number of non-deleted, uncompleted tasks",
 )
 
+bulk_operations_total = Counter(
+    "taskapi_bulk_operations_total",
+    "Total bulk operations executed",
+    ["operation"],
+)
+
 # Operational & infrastructure metrics
 cache_operations_total = Counter(
     "taskapi_cache_operations_total",
     "Total Redis cache operations",
     ["operation", "status"],
+)
+
+circuit_breaker_state_gauge = Gauge(
+    "taskapi_circuit_breaker_state",
+    "Circuit breaker operational state (0=closed, 1=half_open, 2=open)",
+    ["name"],
 )
 
 db_query_duration_seconds = Histogram(

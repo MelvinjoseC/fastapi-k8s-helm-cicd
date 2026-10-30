@@ -73,6 +73,7 @@ class TaskService:
             metrics.active_tasks_gauge.inc()
 
         cache.invalidate(CACHE_KEY_ALL_TASKS)
+        metrics.bulk_operations_total.labels(operation="create").inc()
         return schemas.BulkTaskCreateResponse(
             created_count=len(created_tasks),
             tasks=[schemas.TaskOut.model_validate(t) for t in created_tasks],
@@ -101,6 +102,7 @@ class TaskService:
 
         self.db.commit()
         cache.invalidate(CACHE_KEY_ALL_TASKS)
+        metrics.bulk_operations_total.labels(operation="update").inc()
         return schemas.BulkActionResponse(
             affected_count=len(tasks),
             message=f"Successfully updated {len(tasks)} tasks",
@@ -127,6 +129,7 @@ class TaskService:
 
         self.db.commit()
         cache.invalidate(CACHE_KEY_ALL_TASKS)
+        metrics.bulk_operations_total.labels(operation="delete").inc()
         return schemas.BulkActionResponse(
             affected_count=count,
             message=f"Successfully deleted {count} tasks",
