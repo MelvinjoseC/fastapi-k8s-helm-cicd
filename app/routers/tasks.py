@@ -1,11 +1,14 @@
 """Task management endpoints using TaskService and Repository abstractions."""
 
+import csv
+import io
+import json
 from typing import Annotated
 
 import schemas
 from config import settings
 from database import get_db
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from services.task_service import TaskService
 from sqlalchemy.orm import Session
 
@@ -70,6 +73,43 @@ def get_task_analytics(
         completion_rate_percent=rate,
         status_distribution=raw.get("status_distribution", {}),
         priority_distribution=raw.get("priority_distribution", {}),
+    )
+
+
+@router.get("/export")
+def export_tasks(
+    service: Annotated[TaskService, Depends(get_task_service)],
+    format: str = Query(default="json", pattern="^(json|csv)$"),
+    include_deleted: bool = Query(default=False),
+):
+    """Export tasks to CSV or JSON format for reporting and backups."""
+    tasks = service.list_tasks(include_deleted=include_deleted)
+    task_dicts = [schemas.TaskOut.model_validate(t).model_dump(mode="json") for t in tasks]
+
+    if format == "csv":
+        output = io.StringIO()
+        fieldnames = [
+            "id", "title", "description", "completed", "status", "priority",
+            "due_date", "tags", "created_by", "assigned_to", "estimated_hours",
+            "actual_hours", "created_at", "updated_at",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for d in task_dicts:
+            row = d.copy()
+            row["tags"] = ";".join(d.get("tags") or [])
+            writer.writerow(row)
+
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="tasks.csv"'},
+        )
+
+    return Response(
+        content=json.dumps(task_dicts, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="tasks.json"'},
     )
 
 
