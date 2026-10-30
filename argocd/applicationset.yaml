@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapi-fleet
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: taskapi-dev
+            valuesFile: values.yaml
+            autoSync: true
+          - env: staging
+            namespace: taskapi-staging
+            valuesFile: values-staging.yaml
+            autoSync: true
+          - env: prod
+            namespace: taskapi-prod
+            valuesFile: values-prod.yaml
+            autoSync: false
+  template:
+    metadata:
+      name: 'taskapi-{{env}}'
+      labels:
+        app.kubernetes.io/name: taskapi
+        environment: '{{env}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/MelvinjoseC/fastapi-k8s-helm-cicd.git
+        targetRevision: HEAD
+        path: helm/taskapi
+        helm:
+          valueFiles:
+            - '{{valuesFile}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: '{{autoSync}}'
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true

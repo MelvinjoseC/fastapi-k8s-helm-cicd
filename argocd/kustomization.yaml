@@ -5,3 +5,4 @@ resources:
   - application-dev.yaml
   - application-staging.yaml
   - application-prod.yaml
+  - applicationset.yaml
