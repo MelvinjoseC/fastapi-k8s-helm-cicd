@@ -3,13 +3,16 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --user -r requirements.txt
 
 
 # ---- Runtime stage: minimal distroless-like Debian base, non-root user ----
@@ -18,6 +21,8 @@ FROM python:3.12-slim AS runtime
 LABEL org.opencontainers.image.title="Task API" \
       org.opencontainers.image.description="Cloud-native FastAPI service for Kubernetes CI/CD" \
       org.opencontainers.image.source="https://github.com/MelvinjoseC/fastapi-k8s-helm-cicd" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="1.1.0" \
       org.opencontainers.image.vendor="MelvinjoseC"
 
 # Install dumb-init for PID 1 signal propagation and zombie reaping, plus runtime libpq
@@ -44,7 +49,7 @@ ENV PATH=/home/appuser/.local/bin:$PATH \
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:8000/health || exit 1
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
