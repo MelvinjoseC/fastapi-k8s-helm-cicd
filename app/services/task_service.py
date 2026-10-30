@@ -33,6 +33,9 @@ class TaskService:
             status=models.TaskStatus.PENDING.value,
             due_date=payload.due_date,
             tags=tags_str,
+            created_by=payload.created_by or "system",
+            assigned_to=payload.assigned_to,
+            estimated_hours=payload.estimated_hours,
         )
         saved = self.repo.add(task)
 
@@ -56,6 +59,9 @@ class TaskService:
                 status=models.TaskStatus.PENDING.value,
                 due_date=item.due_date,
                 tags=tags_str,
+                created_by=item.created_by or "system",
+                assigned_to=item.assigned_to,
+                estimated_hours=item.estimated_hours,
             )
             self.db.add(task)
             created_tasks.append(task)

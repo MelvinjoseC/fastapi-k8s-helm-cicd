@@ -15,6 +15,8 @@ class TaskBase(BaseModel):
     priority: TaskPriority = Field(default=TaskPriority.MEDIUM, examples=[TaskPriority.MEDIUM])
     due_date: datetime | None = Field(None, examples=["2026-12-31T23:59:59Z"])
     tags: list[str] = Field(default_factory=list, examples=[["devops", "k8s"]])
+    assigned_to: str | None = Field(None, max_length=100, examples=["engineer@company.com"])
+    estimated_hours: float | None = Field(None, ge=0.0, le=1000.0, examples=[4.5])
 
     @field_validator("title")
     @classmethod
@@ -26,7 +28,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    pass
+    created_by: str | None = Field(default="system", max_length=100)
 
 
 class TaskUpdate(BaseModel):
@@ -37,6 +39,9 @@ class TaskUpdate(BaseModel):
     priority: TaskPriority | None = None
     due_date: datetime | None = None
     tags: list[str] | None = None
+    assigned_to: str | None = Field(None, max_length=100)
+    estimated_hours: float | None = Field(None, ge=0.0, le=1000.0)
+    actual_hours: float | None = Field(None, ge=0.0, le=1000.0)
 
 
 class TaskOut(BaseModel):
@@ -50,6 +55,10 @@ class TaskOut(BaseModel):
     priority: str
     due_date: datetime | None = None
     tags: list[str] = []
+    created_by: str | None = None
+    assigned_to: str | None = None
+    estimated_hours: float | None = None
+    actual_hours: float | None = None
     created_at: datetime
     updated_at: datetime
 
