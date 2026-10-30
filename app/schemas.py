@@ -93,3 +93,13 @@ class BulkTaskDelete(BaseModel):
 class BulkActionResponse(BaseModel):
     affected_count: int
     message: str
+
+
+class TaskAnalyticsSummary(BaseModel):
+    total_tasks: int
+    active_tasks: int
+    completed_tasks: int
+    overdue_tasks: int
+    completion_rate_percent: float
+    status_distribution: dict[str, int]
+    priority_distribution: dict[str, int]

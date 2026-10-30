@@ -52,6 +52,27 @@ def bulk_delete_tasks(
     return service.bulk_delete(payload)
 
 
+@router.get("/analytics/summary", response_model=schemas.TaskAnalyticsSummary)
+def get_task_analytics(
+    service: Annotated[TaskService, Depends(get_task_service)],
+):
+    """Retrieve statistical analytics, completion rates, and status distributions."""
+    raw = service.get_analytics()
+    total = raw.get("total_tasks", 0)
+    completed = raw.get("completed_tasks", 0)
+    rate = round((completed / total) * 100, 2) if total > 0 else 0.0
+
+    return schemas.TaskAnalyticsSummary(
+        total_tasks=total,
+        active_tasks=raw.get("active_tasks", 0),
+        completed_tasks=completed,
+        overdue_tasks=raw.get("overdue_tasks", 0),
+        completion_rate_percent=rate,
+        status_distribution=raw.get("status_distribution", {}),
+        priority_distribution=raw.get("priority_distribution", {}),
+    )
+
+
 @router.get("", response_model=list[schemas.TaskOut])
 def list_tasks(
     service: Annotated[TaskService, Depends(get_task_service)],
