@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from database import Base
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
 
 
 def utcnow():
@@ -36,6 +36,10 @@ class Task(Base):
     priority = Column(String(20), default=TaskPriority.MEDIUM.value, nullable=False, index=True)
     due_date = Column(DateTime(timezone=True), nullable=True)
     tags = Column(String(500), nullable=True, default="")
+    created_by = Column(String(100), nullable=True, default="system")
+    assigned_to = Column(String(100), nullable=True)
+    estimated_hours = Column(Float, nullable=True)
+    actual_hours = Column(Float, nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
