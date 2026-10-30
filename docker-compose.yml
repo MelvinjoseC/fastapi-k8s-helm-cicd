@@ -1,6 +1,6 @@
 version: "3.9"
 
-# Full local development and observability stack (API + Postgres + Redis + Prometheus + Jaeger)
+# Full local development and observability stack (API + Postgres + Redis + Prometheus + Grafana + Jaeger)
 # Run: docker compose up --build
 
 services:
@@ -19,7 +19,7 @@ services:
       RATE_LIMIT_ENABLED: "true"
       RATE_LIMIT_REQUESTS: "120"
       RATE_LIMIT_WINDOW_SECONDS: "60"
-      OTEL_ENABLED: "false"
+      OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
     depends_on:
       postgres:
@@ -27,10 +27,12 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
       timeout: 3s
       retries: 5
+    networks:
+      - taskapi-net
 
   postgres:
     image: postgres:16-alpine
@@ -47,16 +49,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - taskapi-net
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - taskapi-net
 
   prometheus:
     image: prom/prometheus:v2.52.0
@@ -69,6 +77,8 @@ services:
       - "--storage.tsdb.path=/prometheus"
     depends_on:
       - api
+    networks:
+      - taskapi-net
 
   jaeger:
     image: jaegertracing/all-in-one:1.57
@@ -77,6 +87,13 @@ services:
       - "4317:4317"   # OTLP gRPC receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - taskapi-net
 
 volumes:
   pgdata:
+  redisdata:
+
+networks:
+  taskapi-net:
+    driver: bridge
