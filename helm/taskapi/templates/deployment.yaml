@@ -2,36 +2,28 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "taskapi.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "taskapi.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   selector:
     matchLabels:
-      app: {{ include "taskapi.name" . }}
+      {{- include "taskapi.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ include "taskapi.name" . }}
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
-        prometheus.io/port: "8000"
+        {{- include "taskapi.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name | default (include "taskapi.name" .) }}
+      serviceAccountName: {{ include "taskapi.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
         runAsUser: {{ .Values.securityContext.runAsUser }}
       containers:
-        - name: {{ include "taskapi.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
@@ -42,6 +34,15 @@ spec:
                 name: {{ include "taskapi.name" . }}-secret
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if and .Values.probes.startup .Values.probes.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.startup.path }}
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.liveness.path }}

@@ -45,6 +45,12 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 probes:
+  startup:
+    enabled: true
+    path: /health/startup
+    initialDelaySeconds: 2
+    periodSeconds: 3
+    failureThreshold: 10
   liveness:
     path: /health
     initialDelaySeconds: 5
@@ -121,5 +127,3 @@ prometheusRules:
   enabled: false
   additionalLabels:
     release: kube-prometheus-stack
-
-
