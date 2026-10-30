@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Generic, TypeVar
 
+from middleware.sanitization import sanitize_text
 from models import TaskPriority, TaskStatus
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -21,10 +22,15 @@ class TaskBase(BaseModel):
     @field_validator("title")
     @classmethod
     def strip_title(cls, v: str) -> str:
-        v = v.strip()
+        v = sanitize_text(v.strip()) if v else ""
         if not v:
             raise ValueError("title cannot be empty or whitespace only")
         return v
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: str | None) -> str | None:
+        return sanitize_text(v)
 
 
 class TaskCreate(TaskBase):
@@ -42,6 +48,20 @@ class TaskUpdate(BaseModel):
     assigned_to: str | None = Field(None, max_length=100)
     estimated_hours: float | None = Field(None, ge=0.0, le=1000.0)
     actual_hours: float | None = Field(None, ge=0.0, le=1000.0)
+
+    @field_validator("title")
+    @classmethod
+    def sanitize_update_title(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = sanitize_text(v.strip())
+            if not v:
+                raise ValueError("title cannot be empty or whitespace only")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_update_description(cls, v: str | None) -> str | None:
+        return sanitize_text(v)
 
 
 class TaskOut(BaseModel):
