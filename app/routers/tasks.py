@@ -6,13 +6,14 @@ import json
 from typing import Annotated
 
 import schemas
+from auth import get_current_user
 from config import settings
 from database import get_db
 from fastapi import APIRouter, Depends, Query, Response, status
 from services.task_service import TaskService
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(get_current_user)])
 
 
 def get_task_service(db: Annotated[Session, Depends(get_db)]) -> TaskService:
