@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     enable_security_headers: bool = True
     enable_gzip: bool = True
     gzip_min_size: int = 500
+    auth_enabled: bool = False
+    api_key: str | None = None
 
     # Rate Limiting
     rate_limit_enabled: bool = True
